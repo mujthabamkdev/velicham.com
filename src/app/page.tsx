@@ -1,11 +1,11 @@
-import db from '@/lib/db';
-import SocialFeed from '@/components/feed/SocialFeed';
-import GalaxyWrapper from '@/components/galaxy/GalaxyWrapper';
-import ContextSetter from '@/components/note/ContextSetter';
+import db from "@/lib/db";
+import SocialFeed from "@/components/feed/SocialFeed";
+import GalaxyWrapper from "@/components/galaxy/GalaxyWrapper";
+import ContextSetter from "@/components/note/ContextSetter";
 
 export default async function HomePage() {
   const notes = await db.note.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     take: 20,
     include: {
       topic: true,
@@ -17,26 +17,24 @@ export default async function HomePage() {
     <div className="flex flex-col min-h-screen">
       <ContextSetter type="HOME" />
 
-      {/* Hero — Galaxy Nebula */}
-      <section className="h-[70vh] relative flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <GalaxyWrapper nebulas={[]} />
-        </div>
-        <div className="z-10 text-center pointer-events-none select-none">
-          <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[--color-accent-cyan] via-[--color-accent-purple] to-[--color-accent-pink] drop-shadow-lg glow-text">
-            Velicham
-          </h1>
-          <p className="mt-4 text-xl md:text-2xl text-gray-300 font-light tracking-wide">
-            Illuminate Your Knowledge
-          </p>
-        </div>
+      {/* Hero — Interactive Galaxy Canvas (Clean view without blocking center text) */}
+      <section className="h-[60vh] sm:h-[65vh] relative w-full overflow-hidden border-b border-white/10">
+        <GalaxyWrapper nebulas={[]} />
       </section>
 
-      {/* Feed — Recent Discoveries */}
-      <section className="max-w-7xl mx-auto px-4 py-16 w-full">
-        <h2 className="text-3xl font-bold mb-8 text-white">
-          Recent Discoveries
-        </h2>
+      {/* Social Feed — X-style Posts Stream */}
+      <section className="max-w-5xl mx-auto px-4 py-12 w-full space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Knowledge Feed
+            </h2>
+            <p className="text-xs text-gray-400 font-mono mt-0.5">
+              Interactive shorts connected by AI
+            </p>
+          </div>
+        </div>
+
         <SocialFeed notes={notes} />
       </section>
     </div>
