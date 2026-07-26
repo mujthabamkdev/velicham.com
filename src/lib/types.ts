@@ -118,10 +118,14 @@ export interface AgentStore {
   context: AgentContext;
   isOpen: boolean;
   messages: ChatMessage[];
+  favorites: string[];
+  galaxyMode: "minimal" | "popular" | "favorites";
   setContext: (ctx: AgentContext) => void;
   toggleOpen: () => void;
   addMessage: (msg: ChatMessage) => void;
   clearMessages: () => void;
+  toggleFavorite: (noteId: string) => void;
+  setGalaxyMode: (mode: "minimal" | "popular" | "favorites") => void;
 }
 
 export interface ChatMessage {

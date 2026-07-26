@@ -30,10 +30,14 @@ const vertexShader = `
 
 function GalaxyScene({
   nebulas,
+  mode = "minimal",
+  favoriteCount = 0,
   onStarClick,
   inView,
 }: {
   nebulas: GalaxyNebula[];
+  mode?: "minimal" | "popular" | "favorites";
+  favoriteCount?: number;
   onStarClick: (star: GalaxyStar) => void;
   inView: boolean;
 }) {
@@ -54,8 +58,8 @@ function GalaxyScene({
   useFrame((_, delta) => {
     if (!inView) return;
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.05;
-      groupRef.current.rotation.x += delta * 0.01;
+      const speed = mode === "popular" ? 0.08 : 0.03;
+      groupRef.current.rotation.y += delta * speed;
     }
   });
 
@@ -63,30 +67,43 @@ function GalaxyScene({
     const extractedStars = nebulas.flatMap((n) => n.stars);
     if (extractedStars.length > 0) return extractedStars;
 
-    // Generate ambient galaxy particles if no nebulas provided
     const defaultStars: GalaxyStar[] = [];
     const colors = ["#8b5cf6", "#06b6d4", "#ec4899", "#f59e0b", "#ffffff"];
-    for (let i = 0; i < 800; i++) {
-      const radius = 5 + Math.random() * 35;
+
+    // Count determination based on requested mode:
+    // Minimal: very few stars (~40)
+    // Popular / Interest: full vibrant galaxy (~350)
+    // Favorites: scales with user's bookmarked count or minimal fallback
+    let count = 40;
+    if (mode === "popular") count = 350;
+    if (mode === "favorites") count = Math.max(favoriteCount * 25, 30);
+
+    for (let i = 0; i < count; i++) {
+      const radius = 6 + Math.random() * (mode === "popular" ? 35 : 20);
       const angle = Math.random() * Math.PI * 2;
       const branch = (i % 3) * ((Math.PI * 2) / 3);
-      const x = Math.cos(angle + branch) * radius + (Math.random() - 0.5) * 4;
-      const y = (Math.random() - 0.5) * (radius * 0.4);
-      const z = Math.sin(angle + branch) * radius + (Math.random() - 0.5) * 4;
-      const color = colors[Math.floor(Math.random() * colors.length)];
+      const x = Math.cos(angle + branch) * radius + (Math.random() - 0.5) * 3;
+      const y = (Math.random() - 0.5) * (radius * 0.3);
+      const z = Math.sin(angle + branch) * radius + (Math.random() - 0.5) * 3;
+      const color = colors[i % colors.length];
 
       defaultStars.push({
-        id: `ambient-${i}`,
-        label: `Knowledge Node #${i + 1}`,
+        id: `ambient-${mode}-${i}`,
+        label:
+          mode === "favorites"
+            ? `Favorited Node #${i + 1}`
+            : mode === "popular"
+            ? `Trending Topic #${i + 1}`
+            : `Core Node #${i + 1}`,
         slug: `node-${i + 1}`,
         position: [x, y, z],
         color,
-        size: 1.5 + Math.random() * 3.5,
+        size: mode === "minimal" ? 2.5 : 2.0 + Math.random() * 3.0,
         topicId: "default",
       });
     }
     return defaultStars;
-  }, [nebulas]);
+  }, [nebulas, mode, favoriteCount]);
 
   const { positions, colors, sizes } = useMemo(() => {
     const positions = new Float32Array(stars.length * 3);
@@ -172,9 +189,13 @@ function GalaxyScene({
 
 export default function GalaxyCanvas({
   nebulas = [],
+  mode = "minimal",
+  favoriteCount = 0,
   onStarClick = () => {},
 }: {
   nebulas?: GalaxyNebula[];
+  mode?: "minimal" | "popular" | "favorites";
+  favoriteCount?: number;
   onStarClick?: (star: GalaxyStar) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -202,11 +223,13 @@ export default function GalaxyCanvas({
       ref={containerRef}
       className="w-full h-full min-h-[500px] bg-[#030014] relative"
     >
-      <Canvas camera={{ position: [0, 20, 50], fov: 60 }} dpr={[1, 2]}>
+      <Canvas camera={{ position: [0, 18, 45], fov: 60 }} dpr={[1, 2]}>
         <color attach="background" args={["#030014"]} />
         <ambientLight intensity={0.5} />
         <GalaxyScene
           nebulas={nebulas}
+          mode={mode}
+          favoriteCount={favoriteCount}
           onStarClick={onStarClick}
           inView={inView}
         />

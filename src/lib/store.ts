@@ -7,6 +7,8 @@ export const useAgentStore = create<AgentStore>((set) => ({
   context: { type: "HOME" },
   isOpen: false,
   messages: [],
+  favorites: [],
+  galaxyMode: "minimal",
 
   setContext: (ctx: AgentContext) => set({ context: ctx }),
 
@@ -16,4 +18,14 @@ export const useAgentStore = create<AgentStore>((set) => ({
     set((state) => ({ messages: [...state.messages, msg] })),
 
   clearMessages: () => set({ messages: [] }),
+
+  toggleFavorite: (noteId: string) =>
+    set((state) => ({
+      favorites: state.favorites.includes(noteId)
+        ? state.favorites.filter((id) => id !== noteId)
+        : [...state.favorites, noteId],
+    })),
+
+  setGalaxyMode: (mode: "minimal" | "popular" | "favorites") =>
+    set({ galaxyMode: mode }),
 }));
