@@ -280,16 +280,18 @@ export default async function NotePage({
         </aside>
       </div>
 
-      {/* Stream on Scroll */}
+      {/* X-Post Timeline Stream on Scroll */}
       {relatedTopicNotes.length > 0 && (
-        <section className="pt-8 border-t border-white/10 space-y-6">
-          <h3 className="text-xl font-bold text-white">
-            More in {note.topic?.title || "this Topic"} (X-Post Stream)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {relatedTopicNotes.map((relNote) => (
-              <NoteCard key={relNote.id} note={relNote} />
-            ))}
+        <section className="pt-10 border-t border-white/10 space-y-6">
+          <div className="max-w-[640px] mx-auto">
+            <h3 className="text-lg font-bold text-white mb-4">
+              More in {note.topic?.title || "this Topic"} (Timeline Stream)
+            </h3>
+            <div className="space-y-4">
+              {relatedTopicNotes.map((relNote) => (
+                <NoteCard key={relNote.id} note={relNote} />
+              ))}
+            </div>
           </div>
         </section>
       )}
