@@ -1,0 +1,95 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String?
+  email        String    @unique
+  role         Role      @default(USER)
+  galaxyConfig String?   // JSON configuration for user's custom space view
+  comments     Comment[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Channel {
+  id               String   @id @default(cuid())
+  name             String
+  youtubeChannelId String   @unique
+  avatarUrl        String?
+  description      String?
+  topics           Topic[]
+  notes            Note[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  icon        String?
+  channelId   String?
+  channel     Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  notes       Note[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Note {
+  id                String         @id @default(cuid())
+  title             String
+  slug              String         @unique
+  summary           String
+  content           String         // Markdown content with [[slug]] links
+  youtubeUrl        String
+  videoId           String
+  timestamps        String         // JSON string array of timestamp markers
+  imageUrl          String?
+  topicId           String?
+  topic             Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  authorId          String?
+  author            Channel?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  outgoingRelations NoteRelation[] @relation("SourceNote")
+  incomingRelations NoteRelation[] @relation("TargetNote")
+  comments          Comment[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model NoteRelation {
+  id           String   @id @default(cuid())
+  sourceNoteId String
+  sourceNote   Note     @relation("SourceNote", fields: [sourceNoteId], references: [id], onDelete: Cascade)
+  targetNoteId String
+  targetNote   Note     @relation("TargetNote", fields: [targetNoteId], references: [id], onDelete: Cascade)
+  type         String   @default("bi-directional")
+  createdAt    DateTime @default(now())
+
+  @@unique([sourceNoteId, targetNoteId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  content   String
+  status    String   @default("APPROVED") // APPROVED | FLAGGED | AI_REPLIED
+  aiReply   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
