@@ -193,7 +193,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
             })}
 
             {/* Nodes */}
-            {positionedNodes.map((node) => {
+            {positionedNodes.map((node, idx) => {
               const isRoot = node.type === "ROOT_NOTE";
               const isSelected = activeNodeId === node.id;
 
@@ -209,7 +209,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
 
               return (
                 <g
-                  key={node.id}
+                  key={`node_${node.id}_${idx}`}
                   transform={`translate(${node.x}, ${node.y})`}
                   className="cursor-pointer group"
                   onClick={() => setActiveNodeId(isSelected ? null : node.id)}

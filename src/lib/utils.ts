@@ -140,16 +140,19 @@ export function extractBrainNodesAndLinks(note: {
   // Parse Obsidian Wikilinks ([[Concept Name]])
   const wikiRegex = /\[\[([^\]]+)\]\]/g;
   const seenConcepts = new Set<string>();
+  let conceptIndex = 0;
   while ((match = wikiRegex.exec(note.content)) !== null) {
     const conceptText = match[1].trim();
     if (conceptText && !seenConcepts.has(conceptText)) {
       seenConcepts.add(conceptText);
-      const conceptId = `concept_${slugify(conceptText)}`;
+      conceptIndex++;
+      const safeSlug = slugify(conceptText) || `tag_${conceptIndex}`;
+      const conceptId = `concept_${conceptIndex}_${safeSlug}`;
       nodes.push({
         id: conceptId,
         label: `[[${conceptText}]]`,
         type: 'CONCEPT',
-        slug: slugify(conceptText),
+        slug: safeSlug,
         color: '#10b981' // Emerald
       });
       edges.push({ source: rootId, target: conceptId, label: 'maps concept' });
