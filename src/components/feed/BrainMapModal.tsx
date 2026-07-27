@@ -189,47 +189,55 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
   if (!isOpen || !note) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] w-screen h-screen bg-[#1e1e20] flex flex-col font-sans overflow-hidden animate-fadeIn select-none">
-      {/* Obsidian Window Title Bar / Tabs */}
-      <div className="h-10 bg-[#18181a] border-b border-[#2a2a2d] flex items-center justify-between px-3 text-xs shrink-0 z-20">
-        <div className="flex items-center gap-1 overflow-x-auto min-w-0">
-          <div className="flex items-center gap-1.5 mr-3 text-gray-500 text-[11px]">
-            <span>←</span>
-            <span>→</span>
-          </div>
-          {/* Graph View Tab */}
-          <div className="flex items-center gap-2 px-3.5 py-1 bg-[#202023] text-gray-200 border-t-2 border-purple-400 rounded-t-md font-mono text-[11px] shrink-0">
-            <svg className="w-3.5 h-3.5 stroke-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Graph view</span>
-            <button onClick={onClose} className="hover:text-white ml-1.5 text-gray-400">✕</button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 text-gray-400">
-          <span className="text-gray-400 text-xs font-medium truncate max-w-[350px] hidden md:inline">
-            {note.title}
-          </span>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-gray-300 font-bold" title="Close Graph View">
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* Main Full-Screen Canvas Area */}
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl animate-fadeIn font-sans select-none"
+      onClick={onClose}
+    >
+      {/* Obsidian Desktop Window Modal Container - 100% Centered */}
       <div
-        className="flex-1 relative overflow-hidden bg-[#202020] cursor-grab active:cursor-grabbing"
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDownCanvas}
-        onMouseMove={handleMouseMoveCanvas}
-        onMouseUp={handleMouseUpCanvas}
+        className="w-full max-w-5xl h-[85vh] rounded-2xl border border-[#333336] shadow-2xl bg-[#1e1e20] flex flex-col overflow-hidden text-left relative mx-auto"
+        onClick={(e) => e.stopPropagation()}
       >
-        <svg
-          viewBox="0 0 1200 800"
-          className="w-full h-full"
-          style={{ cursor: isPanning ? "grabbing" : "grab" }}
+        {/* Obsidian Window Title Bar / Tabs */}
+        <div className="h-10 bg-[#18181a] border-b border-[#2a2a2d] flex items-center justify-between px-3 text-xs shrink-0 z-20">
+          <div className="flex items-center gap-1 overflow-x-auto min-w-0">
+            <div className="flex items-center gap-1.5 mr-3 text-gray-500 text-[11px]">
+              <span>←</span>
+              <span>→</span>
+            </div>
+            {/* Graph View Tab */}
+            <div className="flex items-center gap-2 px-3.5 py-1 bg-[#202023] text-gray-200 border-t-2 border-purple-400 rounded-t-md font-mono text-[11px] shrink-0">
+              <svg className="w-3.5 h-3.5 stroke-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Graph view</span>
+              <button onClick={onClose} className="hover:text-white ml-1.5 text-gray-400">✕</button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-gray-400">
+            <span className="text-gray-400 text-xs font-medium truncate max-w-[350px] hidden md:inline">
+              {note.title}
+            </span>
+            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-gray-300 font-bold" title="Close Graph View">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Main Canvas Area - Perfectly Centered */}
+        <div
+          className="flex-1 relative overflow-hidden bg-[#202020] cursor-grab active:cursor-grabbing flex items-center justify-center"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDownCanvas}
+          onMouseMove={handleMouseMoveCanvas}
+          onMouseUp={handleMouseUpCanvas}
         >
+          <svg
+            viewBox="0 0 1200 800"
+            className="w-full h-full select-none"
+            style={{ cursor: isPanning ? "grabbing" : "grab" }}
+          >
           <defs>
             <marker
               id="arrow"
@@ -346,5 +354,6 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
