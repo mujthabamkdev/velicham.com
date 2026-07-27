@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { extractBrainNodesAndLinks, BrainNode, BrainEdge } from "@/lib/utils";
+import { extractBrainNodesAndLinks, BrainNode } from "@/lib/utils";
 
 interface BrainMapModalProps {
   note: any;
@@ -12,22 +12,40 @@ interface BrainMapModalProps {
 
 export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalProps) {
   const [selectedFilter, setSelectedFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showArrows, setShowArrows] = useState<boolean>(true);
+  const [nodeScale, setNodeScale] = useState<number>(1.2);
+  const [linkThickness, setLinkThickness] = useState<number>(1);
+  const [textFadeThreshold, setTextFadeThreshold] = useState<number>(50);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+
+  // Filter Toggles State
+  const [toggleTags, setToggleTags] = useState<boolean>(true);
+  const [toggleAttachments, setToggleAttachments] = useState<boolean>(false);
+  const [toggleExistingOnly, setToggleExistingOnly] = useState<boolean>(true);
+  const [toggleOrphans, setToggleOrphans] = useState<boolean>(true);
+
+  // Accordion Sections State
+  const [openSection, setOpenSection] = useState<"FILTERS" | "DISPLAY" | "FORCES">("DISPLAY");
 
   const { nodes, edges } = useMemo(() => {
     if (!note) return { nodes: [], edges: [] };
     return extractBrainNodesAndLinks(note);
   }, [note]);
 
-  // Filter nodes based on selected type pill
+  // Filter nodes based on search & toggles
   const filteredNodes = useMemo(() => {
-    if (selectedFilter === "ALL") return nodes;
-    if (selectedFilter === "CONCEPT") return nodes.filter((n) => n.type === "CONCEPT" || n.type === "ROOT_NOTE");
-    if (selectedFilter === "SECTION") return nodes.filter((n) => n.type === "SECTION" || n.type === "ROOT_NOTE");
-    if (selectedFilter === "TIMESTAMP") return nodes.filter((n) => n.type === "TIMESTAMP" || n.type === "ROOT_NOTE");
-    if (selectedFilter === "LINKED_NOTE") return nodes.filter((n) => n.type === "LINKED_NOTE" || n.type === "ROOT_NOTE");
-    return nodes;
-  }, [nodes, selectedFilter]);
+    return nodes.filter((n) => {
+      if (n.type === "ROOT_NOTE") return true;
+      if (!toggleTags && n.type === "CONCEPT") return false;
+      if (selectedFilter !== "ALL" && n.type !== selectedFilter) return false;
+      if (searchQuery.trim() !== "") {
+        return n.label.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      return true;
+    });
+  }, [nodes, selectedFilter, searchQuery, toggleTags]);
 
   const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes]);
   const filteredEdges = useMemo(
@@ -35,10 +53,10 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     [edges, filteredNodeIds]
   );
 
-  // Position nodes radially around the center root note
+  // Position nodes organically matching Obsidian force graph
   const positionedNodes = useMemo(() => {
-    const width = 800;
-    const height = 500;
+    const width = 850;
+    const height = 550;
     const centerX = width / 2;
     const centerY = height / 2;
 
@@ -46,7 +64,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     const otherNodes = filteredNodes.filter((n) => n.type !== "ROOT_NOTE");
     const totalOthers = otherNodes.length;
 
-    const radius = Math.min(width, height) * 0.36;
+    const radius = Math.min(width, height) * 0.35;
 
     const result: Array<BrainNode & { x: number; y: number }> = [];
 
@@ -56,15 +74,14 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
 
     otherNodes.forEach((node, idx) => {
       const angle = (2 * Math.PI * idx) / (totalOthers || 1) - Math.PI / 2;
-      // Stagger radius slightly for dense node groups
-      const r = radius + (idx % 2 === 0 ? 0 : 35);
+      const r = radius + (idx % 2 === 0 ? 0 : 40) + (isAnimating ? Math.sin(idx + Date.now() * 0.005) * 8 : 0);
       const x = centerX + r * Math.cos(angle);
       const y = centerY + r * Math.sin(angle);
       result.push({ ...node, x, y });
     });
 
     return result;
-  }, [filteredNodes]);
+  }, [filteredNodes, isAnimating]);
 
   const nodePosMap = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
@@ -117,214 +134,312 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     }
   };
 
+  const handleAnimate = () => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 2000);
+  };
+
   if (!isOpen || !note) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fadeIn"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-xl animate-fadeIn font-sans"
       onClick={onClose}
     >
+      {/* Obsidian Desktop Window Container */}
       <div
-        className="w-full max-w-4xl rounded-3xl border border-white/15 shadow-2xl bg-[#121214] flex flex-col max-h-[92vh] overflow-hidden text-left relative"
+        className="w-full max-w-5xl rounded-xl border border-[#333336] shadow-2xl bg-[#1e1e20] flex flex-col h-[88vh] overflow-hidden text-left relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4 bg-[#18181b]">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-white text-black flex items-center justify-center font-bold text-sm shadow-md shrink-0">
-              <svg className="w-5 h-5 fill-black shrink-0" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
+        {/* Obsidian Window Title Bar / Tabs */}
+        <div className="h-10 bg-[#18181a] border-b border-[#2a2a2d] flex items-center justify-between px-3 text-xs select-none">
+          <div className="flex items-center gap-1 overflow-x-auto min-w-0">
+            {/* Left window control icons */}
+            <div className="flex items-center gap-1.5 mr-3 text-gray-500 text-[11px]">
+              <span>←</span>
+              <span>→</span>
             </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-extrabold text-white flex items-center gap-2 truncate">
-                Obsidian Brain Knowledge Graph
-              </h2>
-              <p className="text-xs text-gray-400 truncate">
-                Click any node to jump to its location in note &ldquo;{note.title}&rdquo;
-              </p>
+            {/* Graph View Tab */}
+            <div className="flex items-center gap-2 px-3 py-1 bg-[#202023] text-gray-200 border-t-2 border-purple-400 rounded-t-md font-mono text-[11px] shrink-0">
+              <svg className="w-3.5 h-3.5 stroke-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Graph view</span>
+              <button onClick={onClose} className="hover:text-white ml-1 text-gray-400">✕</button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition shrink-0"
-            title="Close Brain Map"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3 text-gray-400">
+            <span className="text-gray-500 text-xs truncate max-w-[200px] hidden md:inline">{note.title}</span>
+            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-gray-300" title="Close">✕</button>
+          </div>
         </div>
 
-        {/* Filter Pills Bar */}
-        <div className="px-5 py-3 border-b border-white/10 bg-black/40 flex items-center gap-2 overflow-x-auto text-xs font-mono">
-          <span className="text-gray-400 uppercase tracking-wider text-[10px] mr-1 shrink-0">
-            Filter View:
-          </span>
-          {[
-            { id: "ALL", label: `All Nodes (${nodes.length})` },
-            { id: "CONCEPT", label: `🧠 Wikilinks (${nodes.filter((n) => n.type === "CONCEPT").length})` },
-            { id: "SECTION", label: `📌 Sections (${nodes.filter((n) => n.type === "SECTION").length})` },
-            { id: "TIMESTAMP", label: `⏱️ Timestamps (${nodes.filter((n) => n.type === "TIMESTAMP").length})` },
-            { id: "LINKED_NOTE", label: `🔗 Connected Notes (${nodes.filter((n) => n.type === "LINKED_NOTE").length})` },
-          ].map((pill) => (
-            <button
-              key={pill.id}
-              onClick={() => setSelectedFilter(pill.id)}
-              className={`px-3 py-1 rounded-full border transition whitespace-nowrap ${
-                selectedFilter === pill.id
-                  ? "bg-white text-black font-bold border-white shadow-md"
-                  : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"
-              }`}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
+        {/* Main Obsidian Window Body */}
+        <div className="flex-1 flex overflow-hidden relative bg-[#202020]">
+          {/* Left Vertical Icon Strip */}
+          <div className="w-10 bg-[#18181a] border-r border-[#2a2a2d] flex flex-col items-center py-3 gap-4 text-gray-400 text-xs shrink-0 select-none">
+            <span className="cursor-pointer hover:text-white" title="Files">📄</span>
+            <span className="cursor-pointer hover:text-white" title="Search">🔍</span>
+            <span className="cursor-pointer hover:text-white" title="Bookmarks">🔖</span>
+            <span className="cursor-pointer text-white bg-white/10 p-1.5 rounded" title="Graph View">🌐</span>
+            <span className="cursor-pointer hover:text-white mt-auto" title="Settings">⚙️</span>
+          </div>
 
-        {/* Brain Graph Interactive Area */}
-        <div className="relative flex-1 bg-gradient-to-b from-[#0a071d] to-[#04020a] p-4 flex items-center justify-center overflow-auto min-h-[420px]">
-          <svg viewBox="0 0 800 500" className="w-full h-full max-h-[480px] overflow-visible select-none">
-            {/* Background Grid Accent Lines */}
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1" />
-              </pattern>
-              <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#a855f7" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.4" />
-              </linearGradient>
-              <filter id="glowPurple" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
+          {/* Center Canvas Graph Area */}
+          <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+            <svg viewBox="0 0 850 550" className="w-full h-full select-none">
+              <defs>
+                <marker
+                  id="arrow"
+                  viewBox="0 0 10 10"
+                  refX="16"
+                  refY="5"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255, 255, 255, 0.4)" />
+                </marker>
+              </defs>
 
-            <rect width="100%" height="100%" fill="url(#grid)" />
+              {/* Connecting Edges */}
+              {filteredEdges.map((edge, idx) => {
+                const src = nodePosMap.get(edge.source);
+                const tgt = nodePosMap.get(edge.target);
+                if (!src || !tgt) return null;
 
-            {/* Connecting Edges */}
-            {filteredEdges.map((edge, idx) => {
-              const src = nodePosMap.get(edge.source);
-              const tgt = nodePosMap.get(edge.target);
-              if (!src || !tgt) return null;
-
-              const isHighlighted =
-                activeNodeId === edge.source || activeNodeId === edge.target || activeNodeId === null;
-
-              return (
-                <g key={`edge_${idx}`}>
+                return (
                   <line
+                    key={`edge_${idx}`}
                     x1={src.x}
                     y1={src.y}
                     x2={tgt.x}
                     y2={tgt.y}
-                    stroke={isHighlighted ? "url(#edgeGrad)" : "rgba(255, 255, 255, 0.08)"}
-                    strokeWidth={isHighlighted ? 2 : 1}
-                    strokeDasharray={edge.label === "timestamp" ? "4 4" : undefined}
-                    className="transition-all duration-300"
+                    stroke="rgba(255, 255, 255, 0.16)"
+                    strokeWidth={linkThickness}
+                    markerEnd={showArrows ? "url(#arrow)" : undefined}
                   />
-                  {/* Pulse dot along line */}
-                  {isHighlighted && (
-                    <circle r="2.5" fill="#06b6d4" className="animate-ping opacity-75">
-                      <animateMotion
-                        path={`M ${src.x} ${src.y} L ${tgt.x} ${tgt.y}`}
-                        dur={`${3 + (idx % 3)}s`}
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                  )}
-                </g>
-              );
-            })}
+                );
+              })}
 
-            {/* Nodes */}
-            {positionedNodes.map((node, idx) => {
-              const isRoot = node.type === "ROOT_NOTE";
-              const isSelected = activeNodeId === node.id;
+              {/* Obsidian Graph Nodes */}
+              {positionedNodes.map((node, idx) => {
+                const isRoot = node.type === "ROOT_NOTE";
+                const baseRadius = isRoot ? 14 : node.type === "CONCEPT" ? 9 : 7;
+                const radius = baseRadius * nodeScale;
 
-              let nodeRadius = 14;
-              let fillBg = node.color || "#06b6d4";
+                // Authentic Obsidian node colors
+                let fillBg = "#cccccc"; // Default obsidian node gray
+                if (isRoot) fillBg = "#ffffff";
+                else if (node.type === "CONCEPT") fillBg = "#e2e8f0";
+                else if (node.type === "SECTION") fillBg = "#a1a1aa";
+                else if (node.type === "TIMESTAMP") fillBg = "#d4d4d8";
 
-              if (isRoot) {
-                nodeRadius = 24;
-                fillBg = "#a855f7";
-              } else if (node.type === "CONCEPT") {
-                nodeRadius = 16;
-              }
-
-              return (
-                <g
-                  key={`node_${node.id}_${idx}`}
-                  transform={`translate(${node.x}, ${node.y})`}
-                  className="cursor-pointer group"
-                  onClick={() => handleNodeClick(node)}
-                >
-                  {/* Outer Glow Circle */}
-                  <circle
-                    r={nodeRadius + (isSelected ? 8 : 4)}
-                    fill={fillBg}
-                    opacity={isSelected ? 0.4 : isRoot ? 0.25 : 0.15}
-                    className="transition-all duration-300 group-hover:scale-125"
-                  />
-
-                  {/* Main Node Circle */}
-                  <circle
-                    r={nodeRadius}
-                    fill={fillBg}
-                    stroke="#ffffff"
-                    strokeWidth={isRoot ? 3 : 1.5}
-                    filter={isRoot ? "url(#glowPurple)" : undefined}
-                    className="transition-all duration-300 group-hover:r-6"
-                  />
-
-                  {/* Node Label Text */}
-                  <text
-                    y={nodeRadius + 14}
-                    textAnchor="middle"
-                    fill="#ffffff"
-                    className={`text-[10px] font-mono tracking-tight select-none transition-all ${
-                      isRoot ? "font-bold text-[12px] fill-purple-200" : "opacity-90 group-hover:opacity-100"
-                    }`}
+                return (
+                  <g
+                    key={`node_${node.id}_${idx}`}
+                    transform={`translate(${node.x}, ${node.y})`}
+                    className="cursor-pointer group"
+                    onClick={() => handleNodeClick(node)}
                   >
-                    {node.label.length > 24 ? `${node.label.slice(0, 22)}...` : node.label}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
+                    {/* Node Dot */}
+                    <circle
+                      r={radius}
+                      fill={fillBg}
+                      stroke="rgba(255, 255, 255, 0.4)"
+                      strokeWidth={1}
+                      className="transition-all duration-200 group-hover:scale-125"
+                    />
 
-        {/* Footer Details Bar */}
-        <div className="p-4 border-t border-white/10 bg-white/5 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-4 text-gray-300 font-mono text-[11px]">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
-              <span>Root Note</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-              <span>[[Wikilinks]]</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-pink-500 inline-block" />
-              <span>Sections</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block" />
-              <span>Timestamps</span>
-            </div>
+                    {/* Obsidian Typography Label */}
+                    <text
+                      x={radius + 8}
+                      y={4}
+                      fill="#d1d5db"
+                      className="text-[11px] font-sans tracking-tight select-none opacity-85 group-hover:opacity-100 group-hover:fill-white font-medium"
+                    >
+                      {node.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
 
-          {note.slug && (
-            <Link
-              href={`/notes/${note.slug}`}
-              onClick={onClose}
-              style={{ color: "#000000" }}
-              className="px-4 py-1.5 rounded-full bg-white !text-black font-bold text-xs hover:bg-gray-200 transition shadow cursor-pointer"
-            >
-              Open Full Note →
-            </Link>
-          )}
+          {/* Right Control Panel Sidebar ("Filters", "Display", "Forces") */}
+          <div className="w-72 bg-[#252528]/95 border-l border-[#333336] p-4 flex flex-col gap-4 text-xs font-sans overflow-y-auto text-gray-300 shrink-0">
+            {/* Filters Accordion Section */}
+            <div className="border-b border-[#3a3a3e] pb-3">
+              <button
+                onClick={() => setOpenSection(openSection === "FILTERS" ? "DISPLAY" : "FILTERS")}
+                className="w-full flex items-center justify-between font-bold text-gray-200 text-xs mb-2 hover:text-white"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>{openSection === "FILTERS" ? "∨" : "›"}</span>
+                  <span>Filters</span>
+                </span>
+                <span className="text-[10px] text-gray-500 font-mono">🔍</span>
+              </button>
+
+              {openSection === "FILTERS" && (
+                <div className="space-y-3 pt-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search files..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[#18181a] border border-[#3a3a3e] rounded px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-[11px]">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span>Tags</span>
+                      <input
+                        type="checkbox"
+                        checked={toggleTags}
+                        onChange={(e) => setToggleTags(e.target.checked)}
+                        className="rounded accent-blue-500"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span>Attachments</span>
+                      <input
+                        type="checkbox"
+                        checked={toggleAttachments}
+                        onChange={(e) => setToggleAttachments(e.target.checked)}
+                        className="rounded accent-blue-500"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span>Existing files only</span>
+                      <input
+                        type="checkbox"
+                        checked={toggleExistingOnly}
+                        onChange={(e) => setToggleExistingOnly(e.target.checked)}
+                        className="rounded accent-blue-500"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span>Orphans</span>
+                      <input
+                        type="checkbox"
+                        checked={toggleOrphans}
+                        onChange={(e) => setToggleOrphans(e.target.checked)}
+                        className="rounded accent-blue-500"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Display Accordion Section */}
+            <div className="border-b border-[#3a3a3e] pb-3">
+              <button
+                onClick={() => setOpenSection(openSection === "DISPLAY" ? "FORCES" : "DISPLAY")}
+                className="w-full flex items-center justify-between font-bold text-gray-200 text-xs mb-2 hover:text-white"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>{openSection === "DISPLAY" ? "∨" : "›"}</span>
+                  <span>Display</span>
+                </span>
+              </button>
+
+              {openSection === "DISPLAY" && (
+                <div className="space-y-3.5 pt-2">
+                  <label className="flex items-center justify-between text-[11px] cursor-pointer">
+                    <span>Arrows</span>
+                    <input
+                      type="checkbox"
+                      checked={showArrows}
+                      onChange={(e) => setShowArrows(e.target.checked)}
+                      className="rounded accent-blue-500"
+                    />
+                  </label>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-gray-400">
+                      <span>Text fade threshold</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={textFadeThreshold}
+                      onChange={(e) => setTextFadeThreshold(Number(e.target.value))}
+                      className="w-full accent-blue-500 bg-[#18181a] h-1 rounded"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-gray-400">
+                      <span>Node size</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.5"
+                      step="0.1"
+                      value={nodeScale}
+                      onChange={(e) => setNodeScale(Number(e.target.value))}
+                      className="w-full accent-blue-500 bg-[#18181a] h-1 rounded"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-gray-400">
+                      <span>Link thickness</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={linkThickness}
+                      onChange={(e) => setLinkThickness(Number(e.target.value))}
+                      className="w-full accent-blue-500 bg-[#18181a] h-1 rounded"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleAnimate}
+                    className="w-full py-1.5 rounded bg-[#4b6584] hover:bg-[#385373] text-white font-medium text-xs transition shadow-sm"
+                  >
+                    Animate
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Forces Accordion Section */}
+            <div>
+              <button
+                onClick={() => setOpenSection(openSection === "FORCES" ? "DISPLAY" : "FORCES")}
+                className="w-full flex items-center justify-between font-bold text-gray-200 text-xs mb-2 hover:text-white"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>{openSection === "FORCES" ? "∨" : "›"}</span>
+                  <span>Forces</span>
+                </span>
+              </button>
+
+              {openSection === "FORCES" && (
+                <div className="space-y-3 pt-2 text-[11px] text-gray-400">
+                  <div className="space-y-1">
+                    <span>Center force</span>
+                    <input type="range" className="w-full accent-blue-500 bg-[#18181a] h-1 rounded" />
+                  </div>
+                  <div className="space-y-1">
+                    <span>Repel force</span>
+                    <input type="range" className="w-full accent-blue-500 bg-[#18181a] h-1 rounded" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
