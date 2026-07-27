@@ -221,7 +221,7 @@ export default function GalaxyCanvas({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full min-h-[500px] bg-[#030014] relative"
+      className="w-full h-full min-h-[250px] bg-[#030014] relative"
     >
       <Canvas camera={{ position: [0, 18, 45], fov: 60 }} dpr={[1, 2]}>
         <color attach="background" args={["#030014"]} />

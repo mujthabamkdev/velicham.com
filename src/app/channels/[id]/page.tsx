@@ -19,19 +19,19 @@ export default async function ChannelPage({ params }: { params: Promise<{ id: st
   if (!channel) notFound();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-[640px] mx-auto py-10 w-full">
       <ContextSetter type="CHANNEL" id={channel.id} />
-      <div className="mb-12 flex items-center gap-6">
+      <div className="pb-6 mb-6 border-b border-white/10 flex items-center gap-4">
         {channel.avatarUrl && (
-          <img src={channel.avatarUrl} alt={channel.name} className="w-24 h-24 rounded-full border-2 border-[--color-accent-purple]" />
+          <img src={channel.avatarUrl} alt={channel.name} className="w-14 h-14 rounded-full border border-white/20" />
         )}
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">{channel.name}</h1>
-          {channel.description && <p className="text-gray-400 max-w-2xl">{channel.description}</p>}
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1">{channel.name}</h1>
+          {channel.description && <p className="text-sm text-gray-400">{channel.description}</p>}
         </div>
       </div>
       
-      <h2 className="text-2xl font-bold mb-6 border-b border-[--color-nebula-dark] pb-2">All Notes</h2>
+      <h2 className="text-lg font-bold mb-4">All Notes</h2>
       <SocialFeed notes={channel.notes as any} />
     </div>
   );

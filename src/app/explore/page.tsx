@@ -35,7 +35,7 @@ export default async function ExplorePage() {
   }));
 
   return (
-    <div className="w-full h-[calc(100vh-4rem)] relative overflow-hidden bg-[--color-void]">
+    <div className="w-full h-[calc(100vh-3.5rem)] relative overflow-hidden bg-[--color-void]">
       <ContextSetter type="HOME" />
       <ExploreClient data={{ nodes, links }} />
     </div>

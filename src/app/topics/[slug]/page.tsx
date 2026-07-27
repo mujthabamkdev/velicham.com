@@ -18,11 +18,11 @@ export default async function TopicPage({ params }: { params: Promise<{ slug: st
   if (!topic) notFound();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-[640px] mx-auto py-10 w-full">
       <ContextSetter type="TOPIC" id={topic.id} />
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 text-[--color-accent-cyan]">{topic.title}</h1>
-        {topic.description && <p className="text-xl text-gray-400 max-w-2xl mx-auto">{topic.description}</p>}
+      <div className="pb-6 mb-6 border-b border-white/10 text-center">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-[--color-accent-cyan]">{topic.title}</h1>
+        {topic.description && <p className="text-sm text-gray-400 max-w-lg mx-auto">{topic.description}</p>}
       </div>
       <SocialFeed notes={topic.notes as any} />
     </div>

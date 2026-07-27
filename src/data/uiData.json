@@ -1,0 +1,44 @@
+{
+  "heroItems": [
+    {
+      "title": "Connected Knowledge",
+      "sub": "EXPLORE GRAPH NODES",
+      "cta": "EXPLORE",
+      "href": "/explore",
+      "accent": "hover:border-white text-gray-300"
+    },
+    {
+      "title": "Video Transcripts",
+      "sub": "AI SUMMARIES & TIMESTAMPS",
+      "cta": "VIEW ALL",
+      "href": "/topics",
+      "accent": "hover:border-white text-gray-300"
+    },
+    {
+      "title": "Concept Clusters",
+      "sub": "22 TOPIC CATEGORIES",
+      "cta": "BROWSE",
+      "href": "/explore",
+      "accent": "hover:border-white text-gray-300"
+    },
+    {
+      "title": "Knowledge Stream",
+      "sub": "INDEXED KNOWLEDGE BASE",
+      "cta": "VIEW STREAM",
+      "href": "/explore",
+      "accent": "hover:border-white text-gray-300"
+    }
+  ],
+  "navItems": [
+    {
+      "name": "Home",
+      "href": "/",
+      "icon": "home"
+    },
+    {
+      "name": "Explore",
+      "href": "/explore",
+      "icon": "explore"
+    }
+  ]
+}

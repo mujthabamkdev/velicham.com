@@ -16,6 +16,7 @@ export const GeneratedNoteSchema = z.object({
   summary: z.string().max(500),
   content: z.string().describe("Full markdown content with bullet points"),
   timestamps: z.array(TimestampedPointSchema),
+  suggestedTopic: z.string().optional().describe("A concise 1-3 word topic classification for the video"),
 });
 
 /** Schema for AI link generation output */
