@@ -51,11 +51,11 @@ export function renderMarkdownWithLinks(content: string): string {
   if (!content) return '';
   let sectionIdx = 0;
   let html = content
-    // Replace [[Concept]] with obsidian styled concept link in normal read view
+    // Replace [[Concept]] with clean inline concept link in normal read view
     .replace(/\[\[([^\]]+)\]\]/g, (match, text) => {
       const slug = slugify(text);
       const cleanText = text.trim();
-      return `<a href="/notes/${slug}" data-concept="${cleanText}" class="wiki-link inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 font-mono text-xs transition no-underline" data-slug="${slug}">🧠 ${cleanText}</a>`;
+      return `<a href="/notes/${slug}" data-concept="${cleanText}" class="wiki-link text-cyan-400 hover:underline font-medium transition" data-slug="${slug}">${cleanText}</a>`;
     })
     // Simple bold
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
