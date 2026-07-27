@@ -190,12 +190,12 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl animate-fadeIn font-sans select-none"
+      className="fixed inset-0 z-[200] w-screen h-screen bg-[#202020] flex flex-col font-sans overflow-hidden animate-fadeIn select-none p-0 m-0"
       onClick={onClose}
     >
-      {/* Obsidian Desktop Window Modal Container - 100% Centered */}
+      {/* Full Device Width & Height Canvas Container */}
       <div
-        className="w-full max-w-5xl h-[85vh] rounded-2xl border border-[#333336] shadow-2xl bg-[#1e1e20] flex flex-col overflow-hidden text-left relative mx-auto"
+        className="w-full h-full bg-[#202020] flex flex-col overflow-hidden text-left relative inset-0 border-none rounded-none shadow-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Obsidian Window Title Bar / Tabs */}
