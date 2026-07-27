@@ -131,7 +131,7 @@ export function extractBrainNodesAndLinks(note: {
     edges.push({ source: rootId, target: topicId, label: 'belongs to topic' });
   }
 
-  // Parse Section Headings (## Heading)
+  // Parse Main Section Headings (## Heading)
   const headingRegex = /^##+\s+(.*$)/gim;
   let match;
   let sectionIndex = 0;
@@ -147,51 +147,7 @@ export function extractBrainNodesAndLinks(note: {
         type: 'SECTION',
         color: '#ec4899' // Pink
       });
-      edges.push({ source: rootId, target: sectionId, label: 'section' });
-    }
-  }
-
-  // Parse Obsidian Wikilinks ([[Concept Name]])
-  const wikiRegex = /\[\[([^\]]+)\]\]/g;
-  const seenConcepts = new Set<string>();
-  let conceptIndex = 0;
-  while ((match = wikiRegex.exec(note.content)) !== null) {
-    const conceptText = match[1].trim();
-    if (conceptText && !seenConcepts.has(conceptText)) {
-      seenConcepts.add(conceptText);
-      conceptIndex++;
-      const safeSlug = slugify(conceptText) || `tag_${conceptIndex}`;
-      const conceptId = `concept_${conceptIndex}_${safeSlug}`;
-      nodes.push({
-        id: conceptId,
-        label: `[[${conceptText}]]`,
-        type: 'CONCEPT',
-        slug: safeSlug,
-        color: '#10b981' // Emerald
-      });
-      edges.push({ source: rootId, target: conceptId, label: 'maps concept' });
-    }
-  }
-
-  // Parse Timestamps
-  if (note.timestamps) {
-    try {
-      const parsedTs = typeof note.timestamps === 'string' ? JSON.parse(note.timestamps) : note.timestamps;
-      if (Array.isArray(parsedTs)) {
-        parsedTs.slice(0, 5).forEach((ts: any, idx: number) => {
-          const tsId = `ts_${idx}`;
-          const label = `${ts.timestamp || '00:00'} ${ts.text || ts.label || ''}`.trim();
-          nodes.push({
-            id: tsId,
-            label,
-            type: 'TIMESTAMP',
-            color: '#eab308' // Yellow
-          });
-          edges.push({ source: rootId, target: tsId, label: 'timestamp' });
-        });
-      }
-    } catch (e) {
-      // ignore
+      edges.push({ source: rootId, target: sectionId, label: 'main section' });
     }
   }
 
