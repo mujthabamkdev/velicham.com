@@ -94,49 +94,78 @@ function cleanAndParseJSON(rawStr: string): any {
 }
 
 async function callOpenRouterAI(prompt: string): Promise<string> {
+  // First try direct Gemini API if GEMINI_API_KEY is available
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      }
+    } catch (e) {
+      console.warn("Direct Gemini API failed, falling back to OpenRouter free models...", e);
+    }
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   const models = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "inclusionai/ling-3.0-flash:free",
-    "openai/gpt-oss-20b:free"
+    "google/gemini-2.0-flash-lite-preview-02-05:free",
+    "google/gemini-2.0-pro-exp-02-05:free",
+    "google/gemini-2.0-flash-thinking-exp:free",
+    "deepseek/deepseek-r1:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen-2.5-coder-32b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-2-9b-it:free"
   ];
 
   for (const model of models) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "Velicham Knowledge Platform"
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 4096,
-          temperature: 0.3
-        }),
-        signal: controller.signal
-      });
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "Velicham Knowledge Platform"
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 4096,
+            temperature: 0.3
+          }),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.choices && data.choices[0] && data.choices[0].message?.content) {
-          return data.choices[0].message.content;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.choices && data.choices[0] && data.choices[0].message?.content) {
+            return data.choices[0].message.content;
+          }
+        } else {
+          const errText = await response.text().catch(() => "");
+          console.warn(`OpenRouter model ${model} (attempt ${attempt + 1}) returned status ${response.status}: ${errText}`);
         }
+      } catch (e: any) {
+        console.warn(`OpenRouter model ${model} (attempt ${attempt + 1}) failed: ${e?.message || e}`);
       }
-    } catch (e) {
-      console.warn(`OpenRouter model ${model} timed out or failed, trying next fallback...`);
     }
   }
-  throw new Error("All OpenRouter free models timed out or failed");
+  throw new Error("All AI models (Direct Gemini & OpenRouter free pool) timed out or failed. Please check your network connection or API keys.");
 }
 
 function chunkText(text: string, chunkSize: number = 10000, overlap: number = 1000): string[] {
