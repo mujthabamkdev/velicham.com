@@ -80,10 +80,10 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     return map;
   }, [currentNodes]);
 
-  // Handle Zoom on Mouse Wheel
+  // Handle Zoom on Mouse Wheel (Smooth & Gentle)
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+    const zoomFactor = e.deltaY < 0 ? 1.04 : 0.96;
     setZoom((prev) => Math.min(4, Math.max(0.3, prev * zoomFactor)));
   };
 
@@ -326,7 +326,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
         {/* Floating Zoom & Pan Controls on Bottom Right */}
         <div className="absolute bottom-6 right-6 z-30 flex items-center gap-1.5 bg-[#18181a]/90 border border-[#333336] p-1.5 rounded-xl shadow-2xl backdrop-blur-md text-xs text-gray-300 font-mono">
           <button
-            onClick={() => setZoom((z) => Math.min(4, z * 1.2))}
+            onClick={() => setZoom((z) => Math.min(4, z * 1.08))}
             className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center font-bold text-base hover:text-white"
             title="Zoom In"
           >
@@ -334,7 +334,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
           </button>
           <span className="text-[11px] px-1 text-gray-400">{Math.round(zoom * 100)}%</span>
           <button
-            onClick={() => setZoom((z) => Math.max(0.3, z * 0.8))}
+            onClick={() => setZoom((z) => Math.max(0.3, z * 0.92))}
             className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center font-bold text-base hover:text-white"
             title="Zoom Out"
           >
