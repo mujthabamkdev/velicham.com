@@ -159,12 +159,24 @@ function chunkText(text: string, chunkSize: number = 10000, overlap: number = 10
   return chunks;
 }
 
+function isMalayalamContent(text: string): boolean {
+  const malayalamRegex = /[\u0D00-\u0D7F]/;
+  if (malayalamRegex.test(text)) return true;
+  const transliteratedRegex = /\b(prabhashanam|namangal|saviseshatha|nabiyude|snehithan|sahaba|malayalam|pravachakan|keralam|islamic|matham)\b/i;
+  return transliteratedRegex.test(text);
+}
+
 export async function generateNoteFromTranscript(
   transcript: string, 
   videoTitle?: string,
   customPrompt?: string,
   jobId?: string
 ): Promise<GeneratedNote> {
+  const isMalayalam = isMalayalamContent(videoTitle || '') || isMalayalamContent(transcript);
+  const languageDirective = isMalayalam
+    ? `STRICT LANGUAGE RULE: The video content is in MALAYALAM (മലയാളം). You MUST generate ALL JSON fields (title, summary, content, headings, bullet points, timestamps text, suggestedTopic) in NATIVE MALAYALAM SCRIPT (മലയാളം). Do NOT output in English!`
+    : `LANGUAGE RULE: Match the primary language of the video transcript.`;
+
   // For long videos (>18,000 transcript chars / >15 mins), process in chronological time-sliced batches
   if (transcript.length > 18000) {
     const numBatches = transcript.length > 60000 ? 4 : 3;
@@ -185,9 +197,13 @@ export async function generateNoteFromTranscript(
       }
 
       const batchPrompt = `
-You are analyzing Batch ${i + 1} of ${numBatches} of a long video transcript (${firstTs} to ${lastTs})${videoTitle ? ` for "${videoTitle}"` : ''}.
-Do NOT skip any section. Generate detailed, exhaustive notes for ALL discussions in this time segment [${firstTs} to ${lastTs}].
-Include bullet points, subheadings (###), Obsidian concept tags [[Concept]], and exact timestamps [MM:SS].
+You are analyzing Batch ${i + 1} of ${numBatches} of a video transcript (${firstTs} to ${lastTs})${videoTitle ? ` for "${videoTitle}"` : ''}.
+
+EXHAUSTIVE NO-COMPRESSION DIRECTIVE:
+1. Do NOT summarize, condense, or omit ANY detail, argument, story, or explanation from this transcript segment [${firstTs} to ${lastTs}]!
+2. Include ALL discussions in full detail formatted into structured bullet points, subheadings (###), Obsidian concept tags [[Concept]], and timestamps.
+
+${languageDirective}
 
 Transcript Segment (${firstTs} to ${lastTs}):
 ${chunkText}
@@ -212,22 +228,21 @@ ${chunkText}
 You are an expert AI knowledge note creator.
 Combine the following section notes into ONE master, full-length, beautifully formatted knowledge document.
 
-CRITICAL FULL-COVERAGE REQUIREMENT:
-1. The note MUST cover the ENTIRE video timeline from start to finish (00:00 to the end). Do NOT stop early at 2 minutes!
-2. Include ALL section notes provided below.
+CRITICAL EXHAUSTIVE CONTENT RULES:
+1. The note MUST cover the ENTIRE video timeline from start to finish (00:00 to the end). Do NOT omit any section!
+2. Do NOT condense into brief summaries. Include ALL details, explanations, sub-concepts, and timestamp points from all time batches below.
 3. Structure with:
 ${customPrompt || `- ## 📌 Executive Summary\n- ## 💡 Core Concepts & In-Depth Breakdown\n- ## ⏱️ Detailed Timestamped Timeline\n- ## 🎯 Key Takeaways & Conclusions`}
 
 4. OBSIDIAN BRAIN TAGGING RULE: Tag core topics and key section concepts using Obsidian-style double brackets, e.g. [[Core Concept Name]] or [[Key Topic]].
 
-LANGUAGE RULE:
-If the content or video title is in Malayalam (or contains Malayalam text/spoken content), generate title, summary, content, timestamps, and suggestedTopic in native Malayalam script. Otherwise, generate in English.
+${languageDirective}
 
 CRITICAL: Return ONLY a raw valid JSON object with no markdown surrounding it:
 {
-  "title": "A concise, accurate title",
-  "summary": "A brief summary under 500 characters",
-  "content": "Exhaustive, full-length, multi-section markdown document covering all time sections from start to end",
+  "title": "Title in native video language",
+  "summary": "Brief summary in native video language under 500 characters",
+  "content": "Exhaustive, full-length, multi-section markdown document in native video language covering all time sections from start to end",
   "timestamps": [
     {"timestamp": "00:00", "text": "Overview"}
   ],

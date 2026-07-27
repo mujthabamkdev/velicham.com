@@ -70,6 +70,13 @@ export default function AdminIngestPanel({
     }
   };
 
+  const handleFormSubmit = () => {
+    // Immediately fetch jobs on client form submission
+    setTimeout(fetchJobs, 300);
+    const fastPoll = setInterval(fetchJobs, 1000);
+    setTimeout(() => clearInterval(fastPoll), 15000);
+  };
+
   useEffect(() => {
     fetchJobs();
   }, []);
@@ -233,7 +240,7 @@ Required Structure:
           </span>
         </div>
 
-        <form action={ingestYouTubeVideoFormAction} className="space-y-4">
+        <form action={ingestYouTubeVideoFormAction} onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold mb-1 text-gray-300 uppercase tracking-wider">
               YouTube URL or Playlist *
