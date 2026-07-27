@@ -49,20 +49,34 @@ export function parseWikiLinks(content: string): { text: string, slug: string }[
 
 export function renderMarkdownWithLinks(content: string): string {
   if (!content) return '';
+  let sectionIdx = 0;
   let html = content
     // Replace [[Concept]] with obsidian styled concept link in normal read view
     .replace(/\[\[([^\]]+)\]\]/g, (match, text) => {
       const slug = slugify(text);
-      return `<a href="/notes/${slug}" class="wiki-link inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 font-mono text-xs transition no-underline" data-slug="${slug}">🧠 ${text}</a>`;
+      const cleanText = text.trim();
+      return `<a href="/notes/${slug}" data-concept="${cleanText}" class="wiki-link inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 font-mono text-xs transition no-underline" data-slug="${slug}">🧠 ${cleanText}</a>`;
     })
     // Simple bold
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     // Simple italics
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Headers
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    // Headers with data attributes
+    .replace(/^### (.*$)/gim, (match, text) => {
+      sectionIdx++;
+      const cleanHeading = text.replace(/^[^\w\s\u0d00-\u0d7f]+/, '').trim();
+      return `<h3 data-heading="${cleanHeading}">${text}</h3>`;
+    })
+    .replace(/^## (.*$)/gim, (match, text) => {
+      sectionIdx++;
+      const cleanHeading = text.replace(/^[^\w\s\u0d00-\u0d7f]+/, '').trim();
+      return `<h2 data-heading="${cleanHeading}">${text}</h2>`;
+    })
+    .replace(/^# (.*$)/gim, (match, text) => {
+      sectionIdx++;
+      const cleanHeading = text.replace(/^[^\w\s\u0d00-\u0d7f]+/, '').trim();
+      return `<h1 data-heading="${cleanHeading}">${text}</h1>`;
+    })
     // Newlines
     .replace(/\n/g, '<br/>');
     

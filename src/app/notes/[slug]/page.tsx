@@ -6,6 +6,7 @@ import Link from "next/link";
 import NoteCard from "@/components/feed/NoteCard";
 import SocialFeed from "@/components/feed/SocialFeed";
 import NoteBrainMapButton from "@/components/note/NoteBrainMapButton";
+import JumpToSectionHandler from "@/components/note/JumpToSectionHandler";
 
 export default async function NotePage({
   params,
@@ -49,6 +50,7 @@ export default async function NotePage({
   return (
     <div className="max-w-[800px] mx-auto py-10 w-full">
       <ContextSetter type="NOTE" id={note.id} title={note.title} />
+      <JumpToSectionHandler />
 
       {/* Main Content Column */}
       <article className="space-y-6">

@@ -11,10 +11,13 @@ export default function NoteBrainMapButton({ note }: { note: any }) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs font-mono font-semibold transition shrink-0"
+        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-gray-200 text-xs font-mono font-bold transition shrink-0 shadow-sm border border-black"
+        style={{ color: "black" }}
       >
-        <span>🧠</span>
-        <span>View Obsidian Brain Map</span>
+        <svg className="w-3.5 h-3.5 fill-black shrink-0" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+        <span>Obsidian Brain Map</span>
       </button>
 
       <BrainMapModal note={note} isOpen={isOpen} onClose={() => setIsOpen(false)} />

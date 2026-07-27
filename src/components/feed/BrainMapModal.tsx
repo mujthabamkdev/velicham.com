@@ -72,31 +72,76 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     return map;
   }, [positionedNodes]);
 
-  if (!isOpen || !note) return null;
+  const handleNodeClick = (node: BrainNode) => {
+    onClose();
 
-  const rootNode = positionedNodes.find((n) => n.type === "ROOT_NOTE");
+    const rawLabel = node.label.replace(/^\[\[/, "").replace(/\]\]$/, "").trim();
+    if (!rawLabel || node.type === "ROOT_NOTE") return;
+
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+    const notePath = `/notes/${note.slug}`;
+
+    const scrollToMatch = () => {
+      const allElements = Array.from(
+        document.querySelectorAll("h1, h2, h3, h4, a, p, li, span, div")
+      );
+      const match = allElements.find((el) => {
+        const text = el.textContent || "";
+        return (
+          el.getAttribute("data-concept") === rawLabel ||
+          el.getAttribute("data-heading") === rawLabel ||
+          text.includes(rawLabel)
+        );
+      });
+
+      if (match) {
+        match.scrollIntoView({ behavior: "smooth", block: "center" });
+        match.classList.add(
+          "ring-4",
+          "ring-cyan-400",
+          "bg-cyan-500/20",
+          "rounded-xl",
+          "transition-all",
+          "duration-500"
+        );
+        setTimeout(() => {
+          match.classList.remove("ring-4", "ring-cyan-400", "bg-cyan-500/20");
+        }, 3500);
+      }
+    };
+
+    if (currentPath.includes(notePath)) {
+      setTimeout(scrollToMatch, 100);
+    } else if (note.slug) {
+      window.location.href = `${notePath}#${encodeURIComponent(rawLabel)}`;
+    }
+  };
+
+  if (!isOpen || !note) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xl animate-fadeIn"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-4xl glass-card rounded-3xl border border-white/20 shadow-2xl bg-[#070514]/95 flex flex-col max-h-[92vh] overflow-hidden text-left relative"
+        className="w-full max-w-4xl rounded-3xl border border-white/15 shadow-2xl bg-[#121214] flex flex-col max-h-[92vh] overflow-hidden text-left relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4 bg-white/5">
+        <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4 bg-[#18181b]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-cyan-500 to-emerald-400 flex items-center justify-center text-xl shadow-lg shrink-0">
-              🧠
+            <div className="w-10 h-10 rounded-2xl bg-white text-black flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+              <svg className="w-5 h-5 fill-black shrink-0" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-extrabold text-white flex items-center gap-2 truncate">
                 Obsidian Brain Knowledge Graph
               </h2>
               <p className="text-xs text-gray-400 truncate">
-                Section mapping, wikilink concepts (`[[Concept]]`), & connected notes for &ldquo;{note.title}&rdquo;
+                Click any node to jump to its location in note &ldquo;{note.title}&rdquo;
               </p>
             </div>
           </div>
@@ -212,7 +257,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
                   key={`node_${node.id}_${idx}`}
                   transform={`translate(${node.x}, ${node.y})`}
                   className="cursor-pointer group"
-                  onClick={() => setActiveNodeId(isSelected ? null : node.id)}
+                  onClick={() => handleNodeClick(node)}
                 >
                   {/* Outer Glow Circle */}
                   <circle
