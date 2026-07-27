@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { extractBrainNodesAndLinks, BrainNode } from "@/lib/utils";
 
 interface BrainMapModalProps {
@@ -10,6 +11,11 @@ interface BrainMapModalProps {
 }
 
 export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalProps) {
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   // Zoom & Pan State
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -186,11 +192,11 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
     setNodeCustomPos({});
   };
 
-  if (!isOpen || !note) return null;
+  if (!isOpen || !note || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] w-screen h-screen bg-[#202020] flex flex-col font-sans overflow-hidden animate-fadeIn select-none p-0 m-0"
+      className="fixed inset-0 z-[9999] w-screen h-screen bg-[#202020] flex flex-col font-sans overflow-hidden animate-fadeIn select-none p-0 m-0"
       onClick={onClose}
     >
       {/* Full Device Width & Height Canvas Container */}
@@ -354,6 +360,7 @@ export default function BrainMapModal({ note, isOpen, onClose }: BrainMapModalPr
         </div>
       </div>
     </div>
-  </div>
+  </div>,
+  document.body
 );
 }
