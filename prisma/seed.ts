@@ -21,7 +21,12 @@ async function main() {
     });
     console.log("✓ Default Admin user seeded successfully:", adminUser.email);
   } else {
-    console.log("✓ Admin user already exists:", adminEmail);
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await prisma.user.update({
+      where: { email: adminEmail },
+      data: { password: hashedPassword, role: "ADMIN" },
+    });
+    console.log("✓ Admin user password updated:", adminEmail);
   }
 }
 
