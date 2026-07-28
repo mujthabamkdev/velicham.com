@@ -1,11 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Header() {
+  const [user, setUser] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any>(null);
+
+  // Fetch logged in user profile on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    window.location.href = "/login";
+  };
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -112,6 +131,44 @@ export default function Header() {
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* User Profile / Auth Action */}
+        <div className="flex items-center gap-3">
+          {user ? (
+            <div className="flex items-center gap-3">
+              {user.role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 text-xs font-mono font-bold transition hidden sm:inline-block"
+                >
+                  ⚡ Admin Panel
+                </Link>
+              )}
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="font-medium text-white truncate max-w-[120px]">
+                  {user.name || user.email.split("@")[0]}
+                </span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 uppercase">
+                  {user.role}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-xs text-gray-400 hover:text-white px-2 py-1 transition font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-purple-600/20"
+            >
+              Sign In
+            </Link>
           )}
         </div>
       </div>
