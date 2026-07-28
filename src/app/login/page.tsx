@@ -45,13 +45,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleAdminFill = () => {
-    setMode("LOGIN");
-    setEmail("admin@velicham.com");
-    setPassword("admin123");
-    setError("");
-  };
-
   return (
     <div className="min-h-screen bg-[#0f0f11] text-gray-100 flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-md bg-[#18181b] border border-[#27272a] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
@@ -154,18 +147,6 @@ export default function LoginPage() {
             {loading ? "Processing..." : mode === "LOGIN" ? "Sign In" : "Create Account"}
           </button>
         </form>
-
-        {/* Quick Demo Fill Admin Account */}
-        <div className="mt-6 pt-5 border-t border-[#27272a] text-center">
-          <p className="text-[11px] text-gray-400 mb-2">Default Admin Account</p>
-          <button
-            type="button"
-            onClick={handleAdminFill}
-            className="w-full py-2 px-3 rounded-xl bg-[#27272a]/60 hover:bg-[#27272a] border border-[#3f3f46] text-xs font-mono text-cyan-300 flex items-center justify-center gap-2 transition"
-          >
-            <span>⚡ Quick Fill Admin (admin@velicham.com)</span>
-          </button>
-        </div>
       </div>
     </div>
   );
