@@ -1,6 +1,5 @@
 import db from "@/lib/db";
 import SocialFeed from "@/components/feed/SocialFeed";
-import HeroSection from "@/components/feed/HeroSection";
 import ContextSetter from "@/components/note/ContextSetter";
 
 export default async function HomePage() {
@@ -11,6 +10,7 @@ export default async function HomePage() {
       include: {
         topic: true,
         author: true,
+        userCreator: true,
         comments: true,
       },
     }),
@@ -31,10 +31,7 @@ export default async function HomePage() {
     <div className="w-full">
       <ContextSetter type="HOME" />
 
-      {/* 2. Hero Section */}
-      <HeroSection totalNotes={notes.length || 1209} />
-
-      {/* 3. Centered Knowledge Stream Workspace */}
+      {/* Centered Knowledge Stream Workspace */}
       <div className="max-w-7xl mx-auto w-full px-6 py-8 sm:py-12">
         <div className="w-full min-w-0">
           <SocialFeed notes={notes} />

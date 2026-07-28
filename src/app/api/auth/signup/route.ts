@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     // Hash password & create user
     const hashedPassword = await hashPassword(password);
-    const user = await db.user.create({
+    const user: any = await (db.user as any).create({
       data: {
         name: name ? name.trim() : "User",
         email: normalizedEmail,

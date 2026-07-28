@@ -57,11 +57,13 @@ function ShareIcon({ className = "w-[18px] h-[18px]" }: { className?: string }) 
 export default function NoteCard({
   note,
   showAdminControls = false,
-  targetLanguage = "original",
+  isFollowing = false,
+  onToggleFollow,
 }: {
   note: any;
   showAdminControls?: boolean;
-  targetLanguage?: "original" | "ml" | "en";
+  isFollowing?: boolean;
+  onToggleFollow?: (userId: string) => void;
 }) {
   const { favorites, toggleFavorite } = useAgentStore();
   const [copied, setCopied] = useState(false);
@@ -81,53 +83,17 @@ export default function NoteCard({
   const [currentTopic, setCurrentTopic] = useState<any>(note.topic);
   const [showTopicMenu, setShowTopicMenu] = useState(false);
 
-  const [translatedNote, setTranslatedNote] = useState<any>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
+  // Author & User Creator Calculation
+  const userCreator = note.userCreator;
+  const authorName = userCreator
+    ? userCreator.name || userCreator.email.split("@")[0]
+    : note.author?.name || "Velicham Explorer";
 
-  useEffect(() => {
-    if (targetLanguage === "original") {
-      setTranslatedNote(null);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchTranslation = async () => {
-      setIsTranslating(true);
-      try {
-        const res = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: note.title,
-            summary: note.summary,
-            content: note.content,
-            targetLang: targetLanguage,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) setTranslatedNote(data);
-        }
-      } catch (err) {
-        console.error("Translation error:", err);
-      } finally {
-        if (isMounted) setIsTranslating(false);
-      }
-    };
-
-    fetchTranslation();
-    return () => {
-      isMounted = false;
-    };
-  }, [targetLanguage, note.id, note.title, note.summary, note.content]);
-
-  const displayTitle = translatedNote?.title || note.title;
-  const displaySummary = translatedNote?.summary || note.summary;
+  const authorHandle = userCreator
+    ? `@${userCreator.name ? userCreator.name.toLowerCase().replace(/\s+/g, "") : userCreator.email.split("@")[0]}`
+    : `@${authorName.toLowerCase().replace(/\s+/g, "")}`;
 
   const isFav = favorites.includes(note.id);
-
-  const authorName = note.author?.name || "Velicham Explorer";
-  const authorHandle = `@${authorName.toLowerCase().replace(/\s+/g, "")}`;
 
   const fetchTopics = async () => {
     if (topics.length === 0) {
@@ -191,33 +157,52 @@ export default function NoteCard({
       <article className="group cursor-pointer glass-card overflow-hidden flex flex-col h-full w-full">
       <div className="p-5 flex flex-col h-full gap-4">
         
-        {/* Header: Avatar, Name, Handle, Date & Move Topic */}
+        {/* Header: Avatar, Name, Handle, Follow Button, Date & Move Topic */}
         <div className="flex items-center justify-between w-full relative">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-[#000000] shadow-md text-sm shrink-0">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-md ${
+              userCreator ? "bg-gradient-to-tr from-purple-500 to-indigo-500 text-white" : "bg-white text-black"
+            }`}>
               {authorName.charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0 leading-tight">
-              {note.author ? (
-                <Link
-                  href={`/channels/${note.author.id}`}
-                  className="font-bold text-white text-sm hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {authorName}
-                </Link>
-              ) : (
-                <span className="font-bold text-white text-sm truncate">
-                  {authorName}
-                </span>
-              )}
-              <Link
-                href={`/channels/${note.author?.id}`}
-                className="text-gray-400 text-xs hover:text-gray-200 transition-colors truncate"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="flex items-center gap-2">
+                {note.author ? (
+                  <Link
+                    href={`/channels/${note.author.id}`}
+                    className="font-bold text-white text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {authorName}
+                  </Link>
+                ) : (
+                  <span className="font-bold text-white text-sm truncate">
+                    {authorName}
+                  </span>
+                )}
+
+                {/* Follow Button for User Creator */}
+                {userCreator && onToggleFollow && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleFollow(userCreator.id);
+                    }}
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono transition border ${
+                      isFollowing
+                        ? "bg-purple-500/20 text-purple-300 border-purple-500/40 hover:bg-purple-500/30"
+                        : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    }`}
+                  >
+                    {isFollowing ? "Following" : "+ Follow"}
+                  </button>
+                )}
+              </div>
+              <span className="text-gray-400 text-xs truncate">
                 {authorHandle}
-              </Link>
+              </span>
             </div>
           </div>
 
@@ -315,16 +300,11 @@ export default function NoteCard({
         <div className="flex-1 flex flex-col gap-2">
           <Link href={`/notes/${note.slug}`} className="block">
             <h3 className="text-base sm:text-lg font-bold leading-snug text-white group-hover:text-gray-300 transition-colors flex items-center justify-between gap-2">
-              <span>{displayTitle}</span>
-              {isTranslating && (
-                <span className="text-[10px] text-cyan-400 font-mono animate-pulse">
-                  Translating...
-                </span>
-              )}
+              <span>{note.title}</span>
             </h3>
           </Link>
           <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-            {displaySummary}
+            {note.summary}
           </p>
         </div>
 

@@ -18,9 +18,12 @@ export async function POST(req: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const cleanPassword = typeof password === "string" ? password.trim() : password;
+
+    console.log(`[LOGIN] email="${normalizedEmail}" password_length=${String(cleanPassword).length} password_raw="${cleanPassword}"`);
 
     // Find user in DB
-    const user = await db.user.findUnique({
+    const user: any = await db.user.findUnique({
       where: { email: normalizedEmail },
     });
 
@@ -32,7 +35,8 @@ export async function POST(req: Request) {
     }
 
     // Verify bcrypt password hash
-    const isValid = await verifyPassword(password, user.password);
+    const isValid = await verifyPassword(cleanPassword, user.password);
+
     if (!isValid) {
       return NextResponse.json(
         { error: "Invalid email or password" },

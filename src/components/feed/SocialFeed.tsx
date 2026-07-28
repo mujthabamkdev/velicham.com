@@ -1,21 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import NoteCard from "./NoteCard";
 import { useAgentStore } from "@/lib/store";
 
 export default function SocialFeed({ notes }: { notes: any[] }) {
   const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
-  const [sortOption, setSortOption] = useState<"newest" | "popular" | "recent">("newest");
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
-  const [targetLanguage, setTargetLanguage] = useState<"original" | "ml" | "en">("original");
+  const [followedUserIds, setFollowedUserIds] = useState<string[]>([]);
   const { favorites } = useAgentStore();
+
+  useEffect(() => {
+    fetch("/api/users/follow")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.followedUserIds) {
+          setFollowedUserIds(data.followedUserIds);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleFollow = async (targetUserId: string) => {
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.following) {
+          setFollowedUserIds((prev) => [...prev, targetUserId]);
+        } else {
+          setFollowedUserIds((prev) => prev.filter((id) => id !== targetUserId));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to toggle follow:", e);
+    }
+  };
 
   let filteredNotes =
     activeTab === "following"
-      ? notes.filter((n) => favorites.includes(n.id))
+      ? notes.filter(
+          (n) =>
+            (n.userCreatorId && followedUserIds.includes(n.userCreatorId)) ||
+            favorites.includes(n.id)
+        )
       : notes;
 
   if (searchQuery.trim().length > 0) {
@@ -31,7 +66,7 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
   const visibleNotes = filteredNotes.slice(0, visibleCount);
 
   return (
-    <div className="w-full space-y-10 flex flex-col items-center">
+    <div className="w-full space-y-10 flex flex-col items-center font-sans">
       {/* Search Controls */}
       <div className="w-full max-w-4xl mx-auto space-y-4">
         <div className="p-4 sm:p-5 glass-card space-y-2">
@@ -59,8 +94,8 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
         </div>
       </div>
 
-      {/* Subtle Tab & Language Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[--color-border] pb-3 w-full max-w-4xl mx-auto">
+      {/* Tab Navigation */}
+      <div className="flex items-center justify-between border-b border-[#27272a] pb-3 w-full max-w-4xl mx-auto">
         <div className="flex items-center gap-8">
           <button
             onClick={() => setActiveTab("forYou")}
@@ -68,9 +103,9 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
               activeTab === "forYou" ? "text-white" : "text-gray-400 hover:text-gray-200"
             }`}
           >
-            For you
+            For You
             {activeTab === "forYou" && (
-              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-white rounded-t-md" />
+              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-purple-500 rounded-t-md" />
             )}
           </button>
 
@@ -82,43 +117,8 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
           >
             Following
             {activeTab === "following" && (
-              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-white rounded-t-md" />
+              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-purple-500 rounded-t-md" />
             )}
-          </button>
-        </div>
-
-        {/* Language Selector */}
-        <div className="flex items-center gap-1.5 glass-input p-1 rounded-full text-xs font-semibold">
-          <span className="px-2 text-gray-400 text-[11px] font-mono">🌐 Translate:</span>
-          <button
-            onClick={() => setTargetLanguage("original")}
-            className={`px-3 py-1 rounded-full transition ${
-              targetLanguage === "original"
-                ? "bg-white text-black font-bold shadow"
-                : "text-gray-300 hover:text-white"
-            }`}
-          >
-            Original
-          </button>
-          <button
-            onClick={() => setTargetLanguage("ml")}
-            className={`px-3 py-1 rounded-full transition ${
-              targetLanguage === "ml"
-                ? "bg-white text-black font-bold shadow"
-                : "text-gray-300 hover:text-white"
-            }`}
-          >
-            മലയാളം
-          </button>
-          <button
-            onClick={() => setTargetLanguage("en")}
-            className={`px-3 py-1 rounded-full transition ${
-              targetLanguage === "en"
-                ? "bg-white text-black font-bold shadow"
-                : "text-gray-300 hover:text-white"
-            }`}
-          >
-            English
           </button>
         </div>
       </div>
@@ -130,12 +130,12 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
             <div className="text-4xl mb-4">🌌</div>
             <h3 className="text-lg font-bold text-white mb-2">
               {activeTab === "following"
-                ? "No saved notes in your stream"
+                ? "No notes from followed users yet"
                 : "No notes matching your criteria"}
             </h3>
             <p className="text-gray-400 text-sm max-w-md mx-auto leading-relaxed">
               {activeTab === "following"
-                ? "Save notes to your favorites to follow them here!"
+                ? "Follow note creators to see their generated knowledge notes in this feed!"
                 : "No knowledge notes available in your stream right now."}
             </p>
           </div>
@@ -143,7 +143,12 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
           /* Grid Stream */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             {visibleNotes.map((note) => (
-              <NoteCard key={note.id} note={note} targetLanguage={targetLanguage} />
+              <NoteCard
+                key={note.id}
+                note={note}
+                isFollowing={note.userCreatorId ? followedUserIds.includes(note.userCreatorId) : false}
+                onToggleFollow={handleToggleFollow}
+              />
             ))}
           </div>
         )}
@@ -153,7 +158,7 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
           <div className="flex justify-center pt-10 font-mono">
             <button
               onClick={() => setVisibleCount((prev) => prev + 6)}
-              className="px-8 py-3 rounded-full border border-[--color-border] text-gray-300 hover:text-white hover:border-[--color-accent-cyan] hover:bg-white/5 transition font-semibold text-xs bg-transparent"
+              className="px-8 py-3 rounded-full border border-[#27272a] text-gray-300 hover:text-white hover:border-purple-500/50 hover:bg-white/5 transition font-semibold text-xs bg-transparent"
             >
               Load More ({filteredNotes.length - visibleCount} remaining)
             </button>

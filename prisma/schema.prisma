@@ -13,15 +13,30 @@ enum Role {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String?
-  email        String    @unique
-  password     String?
-  role         Role      @default(USER)
-  galaxyConfig String?   // JSON configuration for user's custom space view
-  comments     Comment[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  password         String?
+  openRouterApiKey String?   // Encrypted OpenRouter API Key (AES-256-GCM)
+  role             Role      @default(USER)
+  galaxyConfig     String?   // JSON configuration for user's custom space view
+  createdNotes     Note[]    @relation("UserCreatedNotes")
+  followers        Follow[]  @relation("UserFollowing")
+  following        Follow[]  @relation("UserFollowers")
+  comments         Comment[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
 }
 
 model Channel {
@@ -63,6 +78,8 @@ model Note {
   topic             Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
   authorId          String?
   author            Channel?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  userCreatorId     String?
+  userCreator       User?          @relation("UserCreatedNotes", fields: [userCreatorId], references: [id], onDelete: SetNull)
   outgoingRelations NoteRelation[] @relation("SourceNote")
   incomingRelations NoteRelation[] @relation("TargetNote")
   comments          Comment[]

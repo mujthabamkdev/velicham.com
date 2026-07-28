@@ -93,9 +93,13 @@ function cleanAndParseJSON(rawStr: string): any {
   }
 }
 
-async function callOpenRouterAI(prompt: string): Promise<string> {
-  // First try direct Gemini API if GEMINI_API_KEY is available
-  if (process.env.GEMINI_API_KEY) {
+import { getFreeOpenRouterModels } from "@/lib/ai/openrouter-models";
+
+async function callOpenRouterAI(prompt: string, customApiKey?: string): Promise<string> {
+  const apiKey = customApiKey || process.env.OPENROUTER_API_KEY;
+
+  // First try direct Gemini API if GEMINI_API_KEY is available and no custom user key provided
+  if (!customApiKey && process.env.GEMINI_API_KEY) {
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: "POST",
@@ -114,17 +118,8 @@ async function callOpenRouterAI(prompt: string): Promise<string> {
     }
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  const models = [
-    "google/gemini-2.0-flash-lite-preview-02-05:free",
-    "google/gemini-2.0-pro-exp-02-05:free",
-    "google/gemini-2.0-flash-thinking-exp:free",
-    "deepseek/deepseek-r1:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen-2.5-coder-32b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
-    "google/gemma-2-9b-it:free"
-  ];
+  // Dynamically fetch active free models from OpenRouter scheduler
+  const models = await getFreeOpenRouterModels();
 
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -199,7 +194,8 @@ export async function generateNoteFromTranscript(
   transcript: string, 
   videoTitle?: string,
   customPrompt?: string,
-  jobId?: string
+  jobId?: string,
+  customApiKey?: string
 ): Promise<GeneratedNote> {
   const isMalayalam = isMalayalamContent(videoTitle || '') || isMalayalamContent(transcript);
   const languageDirective = isMalayalam
@@ -239,7 +235,7 @@ ${chunkText}
       `;
 
       try {
-        const batchNoteText = await callOpenRouterAI(batchPrompt);
+        const batchNoteText = await callOpenRouterAI(batchPrompt, customApiKey);
         sectionSummaries.push(`### ⏱️ Video Timeline Section [${firstTs} - ${lastTs}]\n${batchNoteText}`);
       } catch (err) {
         console.warn(`Batch ${i + 1} AI call failed, using fallback segment text`, err);
@@ -282,7 +278,7 @@ Section Notes from All Time Batches:
 ${fullBatchText.slice(0, 45000)}
     `;
 
-    const rawResp = await callOpenRouterAI(synthesisPrompt);
+    const rawResp = await callOpenRouterAI(synthesisPrompt, customApiKey);
     const parsed = cleanAndParseJSON(rawResp);
     return GeneratedNoteSchema.parse(parsed);
   }
@@ -329,7 +325,7 @@ Transcript:
 ${transcript}
       `;
 
-      const rawResp = await callOpenRouterAI(openRouterPrompt);
+      const rawResp = await callOpenRouterAI(openRouterPrompt, customApiKey);
       const parsed = cleanAndParseJSON(rawResp);
       return GeneratedNoteSchema.parse(parsed);
     }

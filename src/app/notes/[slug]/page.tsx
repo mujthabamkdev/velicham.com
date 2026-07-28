@@ -20,6 +20,7 @@ export default async function NotePage({
     include: {
       topic: true,
       author: true,
+      userCreator: true,
       outgoingRelations: {
         include: { targetNote: true },
       },
@@ -39,8 +40,13 @@ export default async function NotePage({
           topicId: note.topicId,
           NOT: { id: note.id },
         },
-        include: { topic: true, author: true },
-        take: 4,
+        take: 10,
+        include: {
+          topic: true,
+          author: true,
+          userCreator: true,
+          comments: true,
+        },
       })
     : [];
 

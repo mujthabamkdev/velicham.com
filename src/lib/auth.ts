@@ -68,17 +68,17 @@ export async function getSessionUser(): Promise<UserSession | null> {
   }
 }
 
-// Automatically ensure default Admin user exists in DB
+// Automatically ensure default Admin user exists in DB with working credentials
 export async function ensureAdminUserExists() {
   try {
     const adminEmail = "admin@velicham.com";
-    const existingAdmin = await db.user.findUnique({
+    const existingAdmin: any = await db.user.findUnique({
       where: { email: adminEmail },
     });
 
     if (!existingAdmin) {
       const hashedPassword = await hashPassword("admin123");
-      await db.user.create({
+      await (db.user as any).create({
         data: {
           name: "System Admin",
           email: adminEmail,
@@ -86,19 +86,10 @@ export async function ensureAdminUserExists() {
           role: "ADMIN",
         },
       });
-      console.log("Default Admin account created: admin@velicham.com / admin123");
-    } else if (!(existingAdmin as any).password) {
-      const hashedPassword = await hashPassword("admin123");
-      await db.user.update({
-        where: { email: adminEmail },
-        data: {
-          password: hashedPassword,
-          role: "ADMIN",
-        },
-      });
-      console.log("Updated default Admin password for existing admin record");
+      console.log("[AUTH] Default Admin account created: admin@velicham.com");
     }
+    // Do NOT update/overwrite existing admin password here - it can corrupt the stored hash
   } catch (e) {
-    console.error("Failed to ensure default admin account:", e);
+    console.error("[AUTH] Failed to ensure default admin account:", e);
   }
 }
