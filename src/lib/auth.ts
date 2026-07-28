@@ -87,7 +87,7 @@ export async function ensureAdminUserExists() {
         },
       });
       console.log("Default Admin account created: admin@velicham.com / admin123");
-    } else if (!existingAdmin.password) {
+    } else if (!(existingAdmin as any).password) {
       const hashedPassword = await hashPassword("admin123");
       await db.user.update({
         where: { email: adminEmail },
