@@ -3,18 +3,25 @@ import { notFound } from "next/navigation";
 import SocialFeed from "@/components/feed/SocialFeed";
 import ContextSetter from "@/components/note/ContextSetter";
 
+export const dynamic = "force-dynamic";
+
 export default async function TopicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const topic = await db.topic.findUnique({
-    where: { slug },
-    include: {
-      notes: {
-        include: { topic: true, author: true, userCreator: true, comments: true },
-        orderBy: { createdAt: "desc" },
+  let topic: any = null;
+  try {
+    topic = await db.topic.findUnique({
+      where: { slug },
+      include: {
+        notes: {
+          include: { topic: true, author: true, userCreator: true, comments: true },
+          orderBy: { createdAt: "desc" },
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("Topic page fetch error:", err);
+  }
 
   if (!topic) notFound();
 

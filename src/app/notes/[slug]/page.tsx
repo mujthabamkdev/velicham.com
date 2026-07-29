@@ -8,7 +8,7 @@ import SocialFeed from "@/components/feed/SocialFeed";
 import NoteBrainMapButton from "@/components/note/NoteBrainMapButton";
 import JumpToSectionHandler from "@/components/note/JumpToSectionHandler";
 import NoteActions from "@/components/note/NoteActions";
-import CommentSection from "@/components/note/CommentSection";
+export const dynamic = "force-dynamic";
 
 export default async function NotePage({
   params,

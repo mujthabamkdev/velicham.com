@@ -2,9 +2,13 @@ import db from "@/lib/db";
 import SocialFeed from "@/components/feed/SocialFeed";
 import ContextSetter from "@/components/note/ContextSetter";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
-  const [notes, topics, channels] = await Promise.all([
-    db.note.findMany({
+  let notes: any[] = [];
+
+  try {
+    notes = await db.note.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,
       include: {
@@ -13,20 +17,11 @@ export default async function HomePage() {
         userCreator: true,
         comments: true,
       },
-    }),
-    db.topic.findMany({
-      take: 10,
-      include: {
-        notes: true,
-      },
-    }),
-    db.channel.findMany({
-      take: 5,
-    }),
-  ]);
+    });
+  } catch (err) {
+    console.error("Home page DB fetch error:", err);
+  }
 
-  // Topics and notes are available if needed for other components
-  
   return (
     <div className="w-full">
       <ContextSetter type="HOME" />

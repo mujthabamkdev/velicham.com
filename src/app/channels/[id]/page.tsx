@@ -3,19 +3,26 @@ import { notFound } from "next/navigation";
 import SocialFeed from "@/components/feed/SocialFeed";
 import ContextSetter from "@/components/note/ContextSetter";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChannelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const channel = await db.channel.findUnique({
-    where: { id },
-    include: {
-      notes: {
-        include: { topic: true, author: true, userCreator: true, comments: true },
-        orderBy: { createdAt: "desc" },
+  let channel: any = null;
+  try {
+    channel = await db.channel.findUnique({
+      where: { id },
+      include: {
+        notes: {
+          include: { topic: true, author: true, userCreator: true, comments: true },
+          orderBy: { createdAt: "desc" },
+        },
+        topics: true,
       },
-      topics: true,
-    },
-  });
+    });
+  } catch (err) {
+    console.error("Channel page fetch error:", err);
+  }
 
   if (!channel) notFound();
 

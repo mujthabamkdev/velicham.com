@@ -1,29 +1,37 @@
-import db from '@/lib/db';
-import ContextSetter from '@/components/note/ContextSetter';
-import ExploreClient from './ExploreClient';
+import db from "@/lib/db";
+import ContextSetter from "@/components/note/ContextSetter";
+import ExploreClient from "./ExploreClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function ExplorePage() {
-  const notes = await db.note.findMany({
-    include: { topic: true },
-  });
-  const topics = await db.topic.findMany();
-  const relations = await db.noteRelation.findMany();
+  let notes: any[] = [];
+  let topics: any[] = [];
+  let relations: any[] = [];
+
+  try {
+    notes = await db.note.findMany({ include: { topic: true } });
+    topics = await db.topic.findMany();
+    relations = await db.noteRelation.findMany();
+  } catch (err) {
+    console.error("Explore page DB fetch error:", err);
+  }
 
   const nodes = [
     ...topics.map((t) => ({
       id: t.id,
       label: t.title,
-      type: 'topic' as const,
+      type: "topic" as const,
       slug: t.slug,
-      color: '#06b6d4',
+      color: "#ffffff",
       size: 8,
     })),
     ...notes.map((n) => ({
       id: n.id,
       label: n.title,
-      type: 'note' as const,
+      type: "note" as const,
       slug: n.slug,
-      color: '#8b5cf6',
+      color: "#a3a3a3",
       size: 4,
     })),
   ];
@@ -35,7 +43,7 @@ export default async function ExplorePage() {
   }));
 
   return (
-    <div className="w-full h-[calc(100vh-3.5rem)] relative overflow-hidden bg-[--color-void]">
+    <div className="w-full h-[calc(100vh-3.5rem)] relative overflow-hidden bg-black">
       <ContextSetter type="HOME" />
       <ExploreClient data={{ nodes, links }} />
     </div>
