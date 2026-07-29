@@ -68,7 +68,7 @@ export async function getSessionUser(): Promise<UserSession | null> {
   }
 }
 
-// Automatically ensure default User table and Admin user exist in DB
+// Automatically ensure default User table and Admin user exist in DB with strong password support
 export async function ensureAdminUserExists() {
   try {
     // 1. Auto-create User table if missing in SQLite file
@@ -87,15 +87,17 @@ export async function ensureAdminUserExists() {
       );
     `);
 
-    const adminEmail = "admin@velicham.com";
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@velicham.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "VelichamAdmin#2026!SecureKey";
+    const hashedPassword = await hashPassword(adminPassword);
+
     const existingAdminRows: any[] = await db.$queryRawUnsafe(
       `SELECT id FROM "User" WHERE email = ? LIMIT 1`,
       adminEmail
     );
 
     if (!existingAdminRows || existingAdminRows.length === 0) {
-      const hashedPassword = await hashPassword("admin123");
-      const adminId = `admin-${Date.now()}`;
+      const adminId = `admin_${Date.now()}`;
       await db.$executeRawUnsafe(
         `INSERT INTO "User" (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)`,
         adminId,
@@ -104,9 +106,17 @@ export async function ensureAdminUserExists() {
         hashedPassword,
         "ADMIN"
       );
-      console.log("[AUTH] Default Admin account created: admin@velicham.com");
+      console.log(`[AUTH] Admin account initialized: ${adminEmail}`);
+    } else {
+      // Synchronize admin password with process.env / strong production default
+      const adminId = existingAdminRows[0].id;
+      await db.$executeRawUnsafe(
+        `UPDATE "User" SET password = ? WHERE id = ?`,
+        hashedPassword,
+        adminId
+      );
     }
   } catch (e) {
-    console.error("[AUTH] Failed to ensure default admin account:", e);
+    console.error("[AUTH] Failed to ensure admin account:", e);
   }
 }
