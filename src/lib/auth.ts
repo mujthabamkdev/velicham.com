@@ -16,12 +16,12 @@ export interface UserSession {
   role: "USER" | "ADMIN";
 }
 
-// Hash password using bcryptjs
+// Hash password using bcryptjs (salt factor 10)
 export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 10);
 }
 
-// Verify plain password against hash
+// Verify plain password against bcrypt hash
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return await bcrypt.compare(password, hash);
 }
@@ -68,7 +68,7 @@ export async function getSessionUser(): Promise<UserSession | null> {
   }
 }
 
-// Automatically ensure default User table and Admin user exist in DB with strong password support
+// Ensure User table and Admin user exist using environment variable ADMIN_PASSWORD
 export async function ensureAdminUserExists() {
   try {
     // 1. Auto-create User table if missing in SQLite file
@@ -88,7 +88,13 @@ export async function ensureAdminUserExists() {
     `);
 
     const adminEmail = process.env.ADMIN_EMAIL || "admin@velicham.com";
-    const adminPassword = process.env.ADMIN_PASSWORD || "VelichamAdmin#2026!SecureKey";
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    // Only update/initialize admin account if ADMIN_PASSWORD environment variable is defined
+    if (!adminPassword) {
+      return;
+    }
+
     const hashedPassword = await hashPassword(adminPassword);
 
     const existingAdminRows: any[] = await db.$queryRawUnsafe(
@@ -106,9 +112,8 @@ export async function ensureAdminUserExists() {
         hashedPassword,
         "ADMIN"
       );
-      console.log(`[AUTH] Admin account initialized: ${adminEmail}`);
+      console.log(`[AUTH] Admin account created for ${adminEmail}`);
     } else {
-      // Synchronize admin password with process.env / strong production default
       const adminId = existingAdminRows[0].id;
       await db.$executeRawUnsafe(
         `UPDATE "User" SET password = ? WHERE id = ?`,
