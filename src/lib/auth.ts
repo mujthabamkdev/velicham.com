@@ -68,27 +68,44 @@ export async function getSessionUser(): Promise<UserSession | null> {
   }
 }
 
-// Automatically ensure default Admin user exists in DB with working credentials
+// Automatically ensure default User table and Admin user exist in DB
 export async function ensureAdminUserExists() {
   try {
-    const adminEmail = "admin@velicham.com";
-    const existingAdmin: any = await db.user.findUnique({
-      where: { email: adminEmail },
-    });
+    // 1. Auto-create User table if missing in SQLite file
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT,
+        "email" TEXT NOT NULL UNIQUE,
+        "password" TEXT,
+        "avatar" TEXT,
+        "role" TEXT NOT NULL DEFAULT 'USER',
+        "openRouterApiKey" TEXT,
+        "galaxyConfig" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-    if (!existingAdmin) {
+    const adminEmail = "admin@velicham.com";
+    const existingAdminRows: any[] = await db.$queryRawUnsafe(
+      `SELECT id FROM "User" WHERE email = ? LIMIT 1`,
+      adminEmail
+    );
+
+    if (!existingAdminRows || existingAdminRows.length === 0) {
       const hashedPassword = await hashPassword("admin123");
-      await (db.user as any).create({
-        data: {
-          name: "System Admin",
-          email: adminEmail,
-          password: hashedPassword,
-          role: "ADMIN",
-        },
-      });
+      const adminId = `admin-${Date.now()}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "User" (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)`,
+        adminId,
+        "System Admin",
+        adminEmail,
+        hashedPassword,
+        "ADMIN"
+      );
       console.log("[AUTH] Default Admin account created: admin@velicham.com");
     }
-    // Do NOT update/overwrite existing admin password here - it can corrupt the stored hash
   } catch (e) {
     console.error("[AUTH] Failed to ensure default admin account:", e);
   }

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, createSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword, createSessionToken, ensureAdminUserExists, AUTH_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    // Ensure User table exists
+    await ensureAdminUserExists();
+
     const body = await req.json();
     const { name, email, password } = body;
 
@@ -16,12 +19,23 @@ export async function POST(req: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check existing user
-    const existing = await db.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    // Check existing user via raw SQL for serverless resilience
+    let existingUser: any = null;
+    try {
+      const userRows: any[] = await db.$queryRawUnsafe(
+        `SELECT id FROM "User" WHERE email = ? LIMIT 1`,
+        normalizedEmail
+      );
+      if (userRows && userRows.length > 0) {
+        existingUser = userRows[0];
+      }
+    } catch (sqlErr) {
+      existingUser = await db.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    }
 
-    if (existing) {
+    if (existingUser) {
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
@@ -30,20 +44,36 @@ export async function POST(req: Request) {
 
     // Hash password & create user
     const hashedPassword = await hashPassword(password);
-    const user: any = await (db.user as any).create({
-      data: {
-        name: name ? name.trim() : "User",
-        email: normalizedEmail,
-        password: hashedPassword,
-        role: "USER",
-      },
-    });
+    const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const userName = name ? name.trim() : "User";
+
+    try {
+      await db.$executeRawUnsafe(
+        `INSERT INTO "User" (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)`,
+        userId,
+        userName,
+        normalizedEmail,
+        hashedPassword,
+        "USER"
+      );
+    } catch (sqlInsertErr) {
+      console.warn("[SIGNUP] Raw SQL insert fallback:", sqlInsertErr);
+      await (db.user as any).create({
+        data: {
+          id: userId,
+          name: userName,
+          email: normalizedEmail,
+          password: hashedPassword,
+          role: "USER",
+        },
+      });
+    }
 
     const sessionUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
+      id: userId,
+      name: userName,
+      email: normalizedEmail,
+      role: "USER" as const,
     };
 
     const token = await createSessionToken(sessionUser);
@@ -65,7 +95,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Signup error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
     );
   }

@@ -4,7 +4,7 @@ import { verifyPassword, createSessionToken, ensureAdminUserExists, AUTH_COOKIE_
 
 export async function POST(req: Request) {
   try {
-    // Ensure default admin account exists
+    // Ensure default admin account and User table exist
     await ensureAdminUserExists();
 
     const body = await req.json();
@@ -20,12 +20,22 @@ export async function POST(req: Request) {
     const normalizedEmail = email.trim().toLowerCase();
     const cleanPassword = typeof password === "string" ? password.trim() : password;
 
-    console.log(`[LOGIN] email="${normalizedEmail}" password_length=${String(cleanPassword).length} password_raw="${cleanPassword}"`);
-
-    // Find user in DB
-    const user: any = await db.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    // Find user in DB via raw SQL for maximum resilience on serverless instances
+    let user: any = null;
+    try {
+      const userRows: any[] = await db.$queryRawUnsafe(
+        `SELECT id, name, email, password, role FROM "User" WHERE email = ? LIMIT 1`,
+        normalizedEmail
+      );
+      if (userRows && userRows.length > 0) {
+        user = userRows[0];
+      }
+    } catch (sqlErr) {
+      console.warn("[LOGIN] Raw SQL fallback query:", sqlErr);
+      user = await db.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    }
 
     if (!user || !user.password) {
       return NextResponse.json(
@@ -70,7 +80,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
     );
   }
