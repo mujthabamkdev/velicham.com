@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { useAgentStore } from '@/lib/store';
+import { useState, useRef, useEffect } from "react";
+import { useAgentStore } from "@/lib/store";
 
 export default function FloatingAiAgent() {
   const { isOpen, toggleOpen, messages, addMessage, context } = useAgentStore();
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,40 +18,45 @@ export default function FloatingAiAgent() {
     if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
-    setInput('');
-    addMessage({ id: Date.now().toString(), role: 'user', content: userMsg, timestamp: new Date() });
+    setInput("");
+    addMessage({ id: Date.now().toString(), role: "user", content: userMsg, timestamp: new Date() });
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg, context }),
       });
 
-      if (!res.ok) throw new Error('Network response was not ok');
-      if (!res.body) throw new Error('No body in response');
+      if (!res.ok) throw new Error("Network response was not ok");
+      if (!res.body) throw new Error("No body in response");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let aiContent = '';
+      let aiContent = "";
       const msgId = (Date.now() + 1).toString();
-      
-      addMessage({ id: msgId, role: 'assistant', content: '', timestamp: new Date() });
+
+      addMessage({ id: msgId, role: "assistant", content: "", timestamp: new Date() });
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         aiContent += chunk;
-        
-        useAgentStore.setState(state => ({
-          messages: state.messages.map(m => m.id === msgId ? { ...m, content: aiContent } : m)
+
+        useAgentStore.setState((state) => ({
+          messages: state.messages.map((m) => (m.id === msgId ? { ...m, content: aiContent } : m)),
         }));
       }
     } catch (error) {
-      console.error('Chat error:', error);
-      addMessage({ id: Date.now().toString(), role: 'assistant', content: 'Sorry, I encountered an error connecting to the cosmic network.', timestamp: new Date() });
+      console.error("Chat error:", error);
+      addMessage({
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Sorry, I encountered an issue connecting to OpenRouter AI.",
+        timestamp: new Date(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -59,49 +64,77 @@ export default function FloatingAiAgent() {
 
   return (
     <>
-      <button 
+      {/* Floating AI Button (Pill with Black Icon & Text Label) */}
+      <button
         onClick={toggleOpen}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-[--color-accent-cyan] to-[--color-accent-purple] flex items-center justify-center shadow-lg hover:scale-110 transition z-50"
+        type="button"
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full bg-white text-black hover:bg-gray-200 border-2 border-white shadow-2xl flex items-center gap-2 hover:scale-105 transition-all z-50 font-bold text-xs"
+        title="Open Velicham AI Assistant"
+        style={{ color: "black" }}
       >
-        ✨
+        <i className="lni lni-sparkles text-sm" style={{ color: "black" }} />
+        <span className="font-bold text-black" style={{ color: "black" }}>AI Guide</span>
       </button>
 
+      {/* Floating AI Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 md:w-96 h-[30rem] glass-card rounded-2xl flex flex-col overflow-hidden border border-[--color-nebula-mid] shadow-2xl z-50 animate-fade-in-up">
-          <div className="p-4 bg-[--color-nebula-dark] border-b border-[--color-nebula-mid] flex justify-between items-center">
-            <h3 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-[--color-accent-cyan] to-[--color-accent-purple]">Velicham AI Guide</h3>
-            <button onClick={toggleOpen} className="text-gray-400 hover:text-white">&times;</button>
+        <div className="fixed bottom-24 right-6 w-80 md:w-96 h-[30rem] bg-[#18181b] rounded-3xl flex flex-col overflow-hidden border-2 border-white shadow-2xl z-50 animate-fade-in-up">
+          {/* Header */}
+          <div className="p-4 bg-[#18181b] border-b border-[#27272a] flex justify-between items-center">
+            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+              <i className="lni lni-sparkles text-white text-base" /> Velicham AI Guide
+            </h3>
+            <button
+              onClick={toggleOpen}
+              type="button"
+              className="text-gray-400 hover:text-white p-1 rounded-lg text-sm transition"
+            >
+              ✕
+            </button>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 font-sans text-xs">
             {messages.length === 0 && (
-              <p className="text-gray-400 text-center text-sm mt-4">Ask me anything about the content on this page.</p>
+              <div className="text-gray-300 text-center py-8 space-y-2">
+                <i className="lni lni-bot text-2xl text-white block" />
+                <p className="font-bold text-white text-xs">How can I assist your learning?</p>
+                <p className="text-[11px] text-gray-300">Ask questions about notes, topics, or YouTube content on this page.</p>
+              </div>
             )}
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-[--color-accent-purple] text-white rounded-br-none' : 'bg-[--color-nebula-dark] text-gray-200 border border-[--color-nebula-mid] rounded-bl-none'}`}>
-                  {msg.content || (msg.role === 'assistant' && isLoading ? '...' : '')}
+              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-white text-black font-semibold rounded-br-none shadow"
+                      : "bg-[#0f0f11] text-white border border-white/20 rounded-bl-none"
+                  }`}
+                  style={msg.role === "user" ? { color: "black" } : { color: "white" }}
+                >
+                  {msg.content || (msg.role === "assistant" && isLoading ? "Thinking..." : "")}
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="p-3 border-t border-[--color-nebula-mid] flex gap-2">
-            <input 
-              type="text" 
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-3 border-t border-[#27272a] bg-[#18181b] flex gap-2">
+            <input
+              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask the cosmos..." 
-              className="flex-1 bg-[--color-nebula-dark] border border-[--color-nebula-mid] rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[--color-accent-cyan]"
+              placeholder="Ask Velicham AI..."
+              className="flex-1 bg-[#0f0f11] border border-[#27272a] rounded-full px-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-white transition"
               disabled={isLoading}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isLoading || !input.trim()}
-              className="w-10 h-10 rounded-full bg-[--color-accent-purple] flex items-center justify-center hover:bg-purple-500 transition disabled:opacity-50"
+              className="w-9 h-9 rounded-full bg-white hover:bg-gray-200 text-black flex items-center justify-center transition disabled:opacity-40 shrink-0 shadow"
             >
-              🚀
+              <i className="lni lni-rocket text-black text-xs" />
             </button>
           </form>
         </div>

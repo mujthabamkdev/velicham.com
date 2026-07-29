@@ -17,6 +17,7 @@ model User {
   name             String?
   email            String    @unique
   password         String?
+  avatar           String?   // Profile character avatar URL/identifier
   openRouterApiKey String?   // Encrypted OpenRouter API Key (AES-256-GCM)
   role             Role      @default(USER)
   galaxyConfig     String?   // JSON configuration for user's custom space view

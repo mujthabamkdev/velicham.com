@@ -12,11 +12,11 @@ export const TimestampedPointSchema = z.object({
 
 /** Schema for the full AI-generated note output */
 export const GeneratedNoteSchema = z.object({
-  title: z.string(),
-  summary: z.string().max(500),
-  content: z.string().describe("Full markdown content with bullet points"),
-  timestamps: z.array(TimestampedPointSchema),
-  suggestedTopic: z.string().optional().describe("A concise 1-3 word topic classification for the video"),
+  title: z.string().optional().default("Generated Knowledge Note"),
+  summary: z.string().optional().default("Summary of the knowledge note."),
+  content: z.string().optional().default("Content of the note."),
+  timestamps: z.array(TimestampedPointSchema).optional().default([]),
+  suggestedTopic: z.string().optional().default("General Knowledge"),
 });
 
 /** Schema for AI link generation output */
@@ -120,12 +120,14 @@ export interface AgentStore {
   isOpen: boolean;
   messages: ChatMessage[];
   favorites: string[];
+  savedNotes: string[];
   galaxyMode: "minimal" | "popular" | "favorites";
   setContext: (ctx: AgentContext) => void;
   toggleOpen: () => void;
   addMessage: (msg: ChatMessage) => void;
   clearMessages: () => void;
   toggleFavorite: (noteId: string) => void;
+  toggleSaveNote: (noteId: string) => void;
   setGalaxyMode: (mode: "minimal" | "popular" | "favorites") => void;
 }
 

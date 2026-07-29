@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/encryption";
 import { generateNoteFromTranscript } from "@/lib/ai/gemini";
+import { extractVideoId, fetchTranscript, fetchVideoMetadata } from "@/lib/youtube";
+import { slugify } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
@@ -12,9 +14,9 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { youtubeUrl, topicPrompt } = body;
+    const { youtubeUrl, topicPrompt, customPrompt } = body;
 
-    if (!youtubeUrl && !topicPrompt) {
+    if (!youtubeUrl && !topicPrompt && !customPrompt) {
       return NextResponse.json(
         { error: "Please provide either a YouTube video URL or a topic prompt" },
         { status: 400 }
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
     if (!isAdmin && !customApiKey) {
       return NextResponse.json(
         {
-          error: "API key required. Please configure your OpenRouter API key in your Profile page before generating AI notes.",
+          error: "API key required. Please configure your OpenRouter API key in your Profile -> My API Keys before generating AI notes.",
           requiresApiKey: true,
         },
         { status: 403 }
@@ -48,47 +50,99 @@ export async function POST(req: Request) {
     let transcript = "";
     let videoTitle = "";
     let videoId = `custom-${Date.now()}`;
-    let finalYoutubeUrl = youtubeUrl || "https://youtube.com";
+    let finalYoutubeUrl = youtubeUrl || "";
+    let meta = { channelId: "@velicham", channelName: "Velicham Knowledge", title: "" };
 
-    if (youtubeUrl) {
-      // Extract videoId from YouTube URL
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      const match = youtubeUrl.match(regExp);
-      if (match && match[2].length === 11) {
-        videoId = match[2];
+    if (youtubeUrl && youtubeUrl.trim().length > 0) {
+      const extractedId = extractVideoId(youtubeUrl);
+      if (extractedId) {
+        videoId = extractedId;
+        finalYoutubeUrl = `https://youtube.com/watch?v=${videoId}`;
       }
-      videoTitle = topicPrompt || `YouTube Note (${videoId})`;
-      transcript = `Video ID: ${videoId}. Content topic: ${videoTitle}. ${topicPrompt || ""}`;
+
+      // Try fetching real video metadata & transcript from YouTube
+      meta = await fetchVideoMetadata(videoId);
+      videoTitle = topicPrompt || meta.title || `YouTube Note (${videoId})`;
+
+      try {
+        transcript = await fetchTranscript(videoId);
+      } catch (transcriptErr) {
+        if (!topicPrompt || !topicPrompt.trim()) {
+          throw new Error("Could not retrieve captions or transcript for this YouTube video. Please select a video with available captions or provide a custom topic prompt.");
+        }
+        transcript = `Video Title: ${videoTitle}\nTopic Request: ${topicPrompt}\nGenerate a comprehensive, high-quality knowledge note covering all key concepts, explanations, and takeaways for this topic.`;
+      }
     } else {
+      // Pure Topic Prompt (No YouTube URL provided)
       videoTitle = topicPrompt;
-      transcript = `Detailed study topic: ${topicPrompt}. Explain concepts clearly with structured headings and key takeaways.`;
+      transcript = `Subject & Study Topic: ${topicPrompt}\nDetailed Request: Create an exhaustive, structured, highly educational knowledge note on this topic. Explain all main arguments, sub-topics, historical/practical context, and key conclusions.`;
     }
 
     // 2. Generate structured note via AI
-    console.log(`[USER NOTE GENERATION] Generating note for user ${session.email} using ${customApiKey ? "custom user OpenRouter key" : "system fallback key"}`);
-    
+    console.log(`[USER NOTE GENERATION] Generating note for user ${session.email} ("${videoTitle}") using ${customApiKey ? "custom OpenRouter key" : "system key"}`);
+
     const generatedData = await generateNoteFromTranscript(
       transcript,
       videoTitle,
-      undefined,
+      customPrompt || topicPrompt,
       undefined,
       customApiKey
     );
 
-    // 3. Generate unique slug
-    let baseSlug = generatedData.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "");
-    if (!baseSlug) baseSlug = `note-${Date.now()}`;
+    // 3. Auto-detect & Upsert Channel (author starts with @)
+    let channelId: string | null = null;
+    if (meta.channelName && meta.channelId) {
+      const existingChannel = await db.channel.findFirst({
+        where: {
+          OR: [
+            { youtubeChannelId: meta.channelId },
+            { name: meta.channelName },
+          ],
+        },
+      });
 
+      if (existingChannel) {
+        channelId = existingChannel.id;
+      } else {
+        const newChannel = await db.channel.create({
+          data: {
+            name: meta.channelName,
+            youtubeChannelId: meta.channelId.startsWith("@") ? meta.channelId : `@${meta.channelId}`,
+            description: `YouTube Channel: ${meta.channelName} (${meta.channelId})`,
+          },
+        });
+        channelId = newChannel.id;
+      }
+    }
+
+    // 4. Auto-detect & Upsert Topic
+    let topicId: string | null = null;
+    const suggestedTopic = generatedData.suggestedTopic || "General Knowledge";
+    const topicSlug = slugify(suggestedTopic);
+
+    const existingTopic = await db.topic.findUnique({ where: { slug: topicSlug } });
+    if (existingTopic) {
+      topicId = existingTopic.id;
+    } else {
+      const newTopic = await db.topic.create({
+        data: {
+          title: suggestedTopic,
+          slug: topicSlug,
+          description: `Topic covering ${suggestedTopic}`,
+        },
+      });
+      topicId = newTopic.id;
+    }
+
+    // 5. Generate unique slug using slugify helper
+    let baseSlug = slugify(generatedData.title);
     let slug = baseSlug;
     let count = 1;
     while (await db.note.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${count++}`;
     }
 
-    // 4. Save to Database
+    // 6. Save to Database with Channel & Topic links
     const newNote = await db.note.create({
       data: {
         title: generatedData.title,
@@ -99,6 +153,8 @@ export async function POST(req: Request) {
         videoId,
         timestamps: JSON.stringify(generatedData.timestamps || []),
         userCreatorId: session.id,
+        authorId: channelId,
+        topicId: topicId,
       },
     });
 

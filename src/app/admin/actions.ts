@@ -175,7 +175,26 @@ export async function ingestYouTubeVideoFormAction(formData: FormData): Promise<
   revalidatePath('/admin');
 }
 
+import { getSessionUser } from '@/lib/auth';
+
 export async function deleteNote(id: string): Promise<void> {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error('Unauthorized');
+  }
+
+  const existingNote = await db.note.findUnique({ where: { id } });
+  if (!existingNote) {
+    throw new Error('Note not found');
+  }
+
+  const isOwner = existingNote.userCreatorId === session.id;
+  const isAdmin = session.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    throw new Error('Forbidden: You can only delete your own notes.');
+  }
+
   await db.note.delete({ where: { id } });
   revalidatePath('/admin');
   revalidatePath('/');
@@ -193,6 +212,23 @@ export async function updateNote(
   noteId: string,
   data: { title?: string; content?: string; summary?: string }
 ) {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error('Unauthorized');
+  }
+
+  const existingNote = await db.note.findUnique({ where: { id: noteId } });
+  if (!existingNote) {
+    throw new Error('Note not found');
+  }
+
+  const isOwner = existingNote.userCreatorId === session.id;
+  const isAdmin = session.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    throw new Error('Forbidden: You can only edit your own notes.');
+  }
+
   const updateData: Record<string, string> = {};
   if (data.title) updateData.title = data.title;
   if (data.content) updateData.content = data.content;
@@ -240,6 +276,17 @@ export async function getTopics() {
 }
 
 export async function updateNoteTopic(noteId: string, topicId: string | null) {
+  const session = await getSessionUser();
+  if (!session) return;
+
+  const existingNote = await db.note.findUnique({ where: { id: noteId } });
+  if (!existingNote) return;
+
+  const isOwner = existingNote.userCreatorId === session.id;
+  const isAdmin = session.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) return;
+
   await db.note.update({
     where: { id: noteId },
     data: { topicId: topicId || null },

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const { message, context } = parsed.data;
     let systemPrompt =
-      'You are Velicham AI, a knowledgeable guide for Velicham.com — a cosmic-themed connected knowledge platform. Answer concisely and helpfully. ';
+      'You are Velicham AI, a knowledgeable guide for velicham.com — a cosmic-themed connected knowledge platform. Answer concisely and helpfully. ';
 
     if (context.type === 'NOTE' && context.id) {
       const note = await db.note.findUnique({

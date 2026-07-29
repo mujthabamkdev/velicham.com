@@ -5,11 +5,18 @@ import Link from "next/link";
 import NoteCard from "./NoteCard";
 import { useAgentStore } from "@/lib/store";
 
-export default function SocialFeed({ notes }: { notes: any[] }) {
+export default function SocialFeed({
+  notes,
+  showTabs = true,
+}: {
+  notes: any[];
+  showTabs?: boolean;
+}) {
   const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
   const [followedUserIds, setFollowedUserIds] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { favorites } = useAgentStore();
 
   useEffect(() => {
@@ -18,6 +25,9 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
       .then((data) => {
         if (data?.followedUserIds) {
           setFollowedUserIds(data.followedUserIds);
+        }
+        if (data?.currentUserId) {
+          setCurrentUserId(data.currentUserId);
         }
       })
       .catch(() => {});
@@ -45,7 +55,7 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
   };
 
   let filteredNotes =
-    activeTab === "following"
+    showTabs && activeTab === "following"
       ? notes.filter(
           (n) =>
             (n.userCreatorId && followedUserIds.includes(n.userCreatorId)) ||
@@ -94,34 +104,36 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-center justify-between border-b border-[#27272a] pb-3 w-full max-w-4xl mx-auto">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={() => setActiveTab("forYou")}
-            className={`text-sm font-bold relative transition-colors ${
-              activeTab === "forYou" ? "text-white" : "text-gray-400 hover:text-gray-200"
-            }`}
-          >
-            For You
-            {activeTab === "forYou" && (
-              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-purple-500 rounded-t-md" />
-            )}
-          </button>
+      {/* Tab Navigation (Optional) */}
+      {showTabs && (
+        <div className="flex items-center justify-between border-b border-[#27272a] pb-3 w-full max-w-4xl mx-auto">
+          <div className="flex items-center gap-8">
+            <button
+              onClick={() => setActiveTab("forYou")}
+              className={`text-sm font-bold relative transition-colors ${
+                activeTab === "forYou" ? "text-white" : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              For You
+              {activeTab === "forYou" && (
+                <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-white rounded-t-md" />
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab("following")}
-            className={`text-sm font-bold relative transition-colors ${
-              activeTab === "following" ? "text-white" : "text-gray-400 hover:text-gray-200"
-            }`}
-          >
-            Following
-            {activeTab === "following" && (
-              <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-purple-500 rounded-t-md" />
-            )}
-          </button>
+            <button
+              onClick={() => setActiveTab("following")}
+              className={`text-sm font-bold relative transition-colors ${
+                activeTab === "following" ? "text-white" : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Following
+              {activeTab === "following" && (
+                <div className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-white rounded-t-md" />
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grid Feed Container */}
       <div className="w-full">
@@ -140,14 +152,15 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
             </p>
           </div>
         ) : (
-          /* Grid Stream */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+          /* Single Column Centered Stream (1 note per row) */
+          <div className="flex flex-col items-center gap-8 max-w-2xl mx-auto w-full">
             {visibleNotes.map((note) => (
               <NoteCard
                 key={note.id}
                 note={note}
                 isFollowing={note.userCreatorId ? followedUserIds.includes(note.userCreatorId) : false}
                 onToggleFollow={handleToggleFollow}
+                currentUserId={currentUserId || undefined}
               />
             ))}
           </div>
@@ -158,7 +171,7 @@ export default function SocialFeed({ notes }: { notes: any[] }) {
           <div className="flex justify-center pt-10 font-mono">
             <button
               onClick={() => setVisibleCount((prev) => prev + 6)}
-              className="px-8 py-3 rounded-full border border-[#27272a] text-gray-300 hover:text-white hover:border-purple-500/50 hover:bg-white/5 transition font-semibold text-xs bg-transparent"
+              className="px-8 py-3 rounded-full border border-[#27272a] text-gray-300 hover:text-white hover:border-white/40 hover:bg-white/5 transition font-semibold text-xs bg-transparent"
             >
               Load More ({filteredNotes.length - visibleCount} remaining)
             </button>

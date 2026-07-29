@@ -1,11 +1,15 @@
 export function slugify(text: string): string {
-  return text
+  if (!text) return `note-${Date.now()}`;
+  const slug = text
     .toString()
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
+    .replace(/[^\w\-\u0d00-\u0d7f]+/g, '')
+    .replace(/\-\-+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
+  return slug || `note-${Date.now()}`;
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

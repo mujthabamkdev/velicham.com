@@ -10,16 +10,31 @@ export default function Header() {
   const [results, setResults] = useState<any>(null);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
-  // Fetch logged in user profile on mount
-  useEffect(() => {
+  const fetchAuthUser = () => {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
         if (data?.user) {
           setUser(data.user);
+        } else {
+          setUser(null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setUser(null);
+      });
+  };
+
+  // Fetch logged in user profile on mount & on window focus / auth changes
+  useEffect(() => {
+    fetchAuthUser();
+
+    window.addEventListener("focus", fetchAuthUser);
+    window.addEventListener("popstate", fetchAuthUser);
+    return () => {
+      window.removeEventListener("focus", fetchAuthUser);
+      window.removeEventListener("popstate", fetchAuthUser);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -52,25 +67,14 @@ export default function Header() {
           {/* Brand Logo */}
           <Link href="/" className="flex-shrink-0 flex items-center gap-2">
             <span className="text-xl sm:text-2xl font-black text-white">
-              Velicham
+              VELICHAM
             </span>
           </Link>
 
           {/* Search Bar */}
           <div className="flex-1 max-w-md hidden sm:block relative">
             <div className="relative w-full">
-              <svg
-                className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+              <i className="lni lni-search-alt text-base text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search knowledge notes..."
@@ -84,7 +88,7 @@ export default function Header() {
               <div className="absolute top-full left-0 right-0 mt-2 glass-card p-4 shadow-2xl max-h-80 overflow-y-auto z-50 text-sm">
                 {results.notes?.length > 0 && (
                   <div className="mb-3">
-                    <h4 className="text-xs uppercase font-mono tracking-wider text-purple-400 mb-2 px-1 font-bold">
+                    <h4 className="text-xs uppercase font-mono tracking-wider text-gray-400 mb-2 px-1 font-bold">
                       Notes
                     </h4>
                     {results.notes.map((n: any) => (
@@ -101,7 +105,7 @@ export default function Header() {
                 )}
                 {results.topics?.length > 0 && (
                   <div className="mb-3">
-                    <h4 className="text-xs uppercase font-mono tracking-wider text-cyan-400 mb-2 px-1 font-bold">
+                    <h4 className="text-xs uppercase font-mono tracking-wider text-white mb-2 px-1 font-bold">
                       Topics
                     </h4>
                     {results.topics.map((t: any) => (
@@ -118,7 +122,7 @@ export default function Header() {
                 )}
                 {results.channels?.length > 0 && (
                   <div>
-                    <h4 className="text-xs uppercase font-mono tracking-wider text-pink-400 mb-2 px-1 font-bold">
+                    <h4 className="text-xs uppercase font-mono tracking-wider text-gray-300 mb-2 px-1 font-bold">
                       Channels
                     </h4>
                     {results.channels.map((c: any) => (
@@ -144,31 +148,35 @@ export default function Header() {
                 {/* Generate AI Note Button */}
                 <button
                   onClick={() => setIsGenerateModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-full bg-white hover:bg-gray-200 text-black text-xs font-bold transition shadow flex items-center gap-1.5"
                 >
-                  <span>✨</span>
+                  <i className="lni lni-sparkles text-sm" />
                   <span className="hidden sm:inline">Create AI Note</span>
                 </button>
 
                 {user.role === "ADMIN" && (
                   <Link
                     href="/admin"
-                    className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 text-xs font-mono font-bold transition hidden sm:inline-block"
+                    className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 text-xs font-mono font-bold transition hidden sm:inline-block flex items-center gap-1.5"
                   >
-                    ⚡ Admin Panel
+                    <i className="lni lni-bolt text-sm" /> Admin Panel
                   </Link>
                 )}
 
                 {/* Clickable Profile Icon & User Button */}
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 rounded-full pl-1.5 pr-2.5 py-1 text-xs transition group"
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 rounded-full pl-1.5 pr-2.5 py-1 text-xs transition group"
                   title="View Profile"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-[11px] shadow-sm">
-                    {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                  <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-black font-bold text-[11px] shadow-sm overflow-hidden">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt="Profile Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()
+                    )}
                   </div>
-                  <span className="font-medium text-white truncate max-w-[90px] group-hover:text-purple-300 transition hidden sm:inline-block">
+                  <span className="font-medium text-white truncate max-w-[90px] group-hover:text-gray-300 transition hidden sm:inline-block">
                     {user.name || user.email.split("@")[0]}
                   </span>
                 </Link>
@@ -184,7 +192,8 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-purple-600/20"
+                className="px-4 py-2 rounded-full bg-white hover:bg-gray-200 text-black text-xs font-bold transition shadow-md"
+                style={{ color: "black" }}
               >
                 Sign In
               </Link>

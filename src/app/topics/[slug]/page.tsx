@@ -1,30 +1,39 @@
-import db from '@/lib/db';
-import { notFound } from 'next/navigation';
-import SocialFeed from '@/components/feed/SocialFeed';
-import ContextSetter from '@/components/note/ContextSetter';
+import db from "@/lib/db";
+import { notFound } from "next/navigation";
+import SocialFeed from "@/components/feed/SocialFeed";
+import ContextSetter from "@/components/note/ContextSetter";
 
 export default async function TopicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  
+
   const topic = await db.topic.findUnique({
     where: { slug },
     include: {
       notes: {
-        include: { topic: true, author: true }
-      }
-    }
+        include: { topic: true, author: true, userCreator: true, comments: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
 
   if (!topic) notFound();
 
   return (
-    <div className="max-w-[640px] mx-auto py-10 w-full">
+    <div className="max-w-5xl w-full mx-auto px-4 py-8 sm:py-12 space-y-8">
       <ContextSetter type="TOPIC" id={topic.id} />
-      <div className="pb-6 mb-6 border-b border-white/10 text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-[--color-accent-cyan]">{topic.title}</h1>
-        {topic.description && <p className="text-sm text-gray-400 max-w-lg mx-auto">{topic.description}</p>}
+      {/* Topic Header Banner */}
+      <div className="bg-[#18181b] border border-[#27272a] rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">#{topic.title}</h1>
+        {topic.description && <p className="text-xs text-gray-400 max-w-xl mx-auto leading-relaxed">{topic.description}</p>}
       </div>
-      <SocialFeed notes={topic.notes as any} />
+
+      {/* Wide Notes Feed */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <i className="lni lni-book text-base" /> Topic Knowledge Notes ({topic.notes.length})
+        </h2>
+        <SocialFeed notes={topic.notes as any} showTabs={false} />
+      </div>
     </div>
   );
 }

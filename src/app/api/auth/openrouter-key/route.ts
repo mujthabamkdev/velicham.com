@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user: any = await db.user.findUnique({
+    const user: any = await (db.user as any).findUnique({
       where: { id: session.id },
       select: { openRouterApiKey: true },
     });

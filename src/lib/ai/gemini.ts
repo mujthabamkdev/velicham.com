@@ -11,12 +11,34 @@ import { addJobLog } from '@/lib/jobs';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy-key-for-openrouter" });
 
+function normalizeJSONOutput(obj: any): any {
+  if (!obj || typeof obj !== "object") {
+    obj = {};
+  }
+  if (!Array.isArray(obj.timestamps)) {
+    obj.timestamps = [{ timestamp: "00:00", text: "Overview & Introduction" }];
+  }
+  if (!obj.title || typeof obj.title !== "string") {
+    obj.title = "Generated Knowledge Note";
+  }
+  if (!obj.summary || typeof obj.summary !== "string") {
+    obj.summary = obj.title || "Detailed knowledge note.";
+  }
+  if (!obj.content || typeof obj.content !== "string") {
+    obj.content = obj.summary;
+  }
+  if (!obj.suggestedTopic || typeof obj.suggestedTopic !== "string") {
+    obj.suggestedTopic = "General Knowledge";
+  }
+  return obj;
+}
+
 function cleanAndParseJSON(rawStr: string): any {
   let cleaned = rawStr.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
 
   // 1. Direct parse
   try {
-    return JSON.parse(cleaned);
+    return normalizeJSONOutput(JSON.parse(cleaned));
   } catch (e1) {
     // 2. Extract inner brace contents
     const firstBrace = cleaned.indexOf('{');
@@ -24,7 +46,7 @@ function cleanAndParseJSON(rawStr: string): any {
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       const extracted = cleaned.slice(firstBrace, lastBrace + 1);
       try {
-        return JSON.parse(extracted);
+        return normalizeJSONOutput(JSON.parse(extracted));
       } catch (e2) {
         // Continue to auto-repair
       }
@@ -75,20 +97,20 @@ function cleanAndParseJSON(rawStr: string): any {
         else if (last === '[') repaired += ']';
       }
 
-      return JSON.parse(repaired);
+      return normalizeJSONOutput(JSON.parse(repaired));
     } catch (e3) {
       // 4. Guaranteed regex extraction fallback
       const titleMatch = cleaned.match(/"title"\s*:\s*"([^"]+)"/);
       const summaryMatch = cleaned.match(/"summary"\s*:\s*"([^"]+)"/);
       const topicMatch = cleaned.match(/"suggestedTopic"\s*:\s*"([^"]+)"/);
 
-      return {
+      return normalizeJSONOutput({
         title: titleMatch ? titleMatch[1] : "Generated Knowledge Note",
         summary: summaryMatch ? summaryMatch[1] : "Detailed note extracted from transcript.",
         content: cleaned,
         timestamps: [{ timestamp: "00:00", text: "Overview" }],
         suggestedTopic: topicMatch ? topicMatch[1] : "Knowledge"
-      };
+      });
     }
   }
 }
@@ -133,7 +155,7 @@ async function callOpenRouterAI(prompt: string, customApiKey?: string): Promise<
             "Authorization": `Bearer ${apiKey}`,
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost:3000",
-            "X-Title": "Velicham Knowledge Platform"
+            "X-Title": "VELICHAM Knowledge Platform"
           },
           body: JSON.stringify({
             model,
@@ -178,7 +200,7 @@ function chunkText(text: string, chunkSize: number = 10000, overlap: number = 10
     chunks.push(text.slice(start, end));
     start = end - overlap;
     if (start < 0) start = 0;
-    if (start >= text.length) break; 
+    if (start >= text.length) break;
   }
   return chunks;
 }
@@ -191,7 +213,7 @@ function isMalayalamContent(text: string): boolean {
 }
 
 export async function generateNoteFromTranscript(
-  transcript: string, 
+  transcript: string,
   videoTitle?: string,
   customPrompt?: string,
   jobId?: string,
@@ -338,61 +360,43 @@ ${transcript}
       model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                  title: { type: Type.STRING },
-                  summary: { type: Type.STRING, description: 'max 500 chars' },
-                  content: { type: Type.STRING, description: 'Full markdown content with timestamped bullet points' },
-                  timestamps: {
-                      type: Type.ARRAY,
-                      items: {
-                          type: Type.OBJECT,
-                          properties: {
-                              timestamp: { type: Type.STRING },
-                              text: { type: Type.STRING }
-                          },
-                          required: ['timestamp', 'text']
-                      }
-                  },
-                  suggestedTopic: { type: Type.STRING, description: 'A concise 1-3 word topic classification' }
-              },
-              required: ['title', 'summary', 'content', 'timestamps', 'suggestedTopic']
-          }
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            summary: { type: Type.STRING, description: 'max 500 chars' },
+            content: { type: Type.STRING, description: 'Full markdown content with timestamped bullet points' },
+            timestamps: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  timestamp: { type: Type.STRING },
+                  text: { type: Type.STRING }
+                },
+                required: ['timestamp', 'text']
+              }
+            },
+            suggestedTopic: { type: Type.STRING, description: 'A concise 1-3 word topic classification' }
+          },
+          required: ['title', 'summary', 'content', 'timestamps', 'suggestedTopic']
+        }
       }
     });
 
     const textResp = response.text || "";
     if (!textResp) throw new Error("Empty response from AI");
-    
+
     const json = JSON.parse(textResp);
     return GeneratedNoteSchema.parse(json);
   } catch (error) {
-    console.warn("AI note generation failed/skipped, using fallback parser:", error instanceof Error ? error.message : error);
-    
-    // Heuristic fallback
-    const fallbackTitle = videoTitle || (transcript.slice(0, 60).replace(/\[\d{2}:\d{2}\]/g, '').trim() + "...");
-    const fallbackSummary = transcript.slice(0, 450).replace(/\[\d{2}:\d{2}\]/g, '').trim() + "...";
-    
-    // Extract basic timestamp markers from transcript format [MM:SS]
-    const timestampMatches = [...transcript.matchAll(/\[(\d{2}:\d{2}(?::\d{2})?)\]\s*([^[\n]+)/g)];
-    const timestamps = timestampMatches.slice(0, 5).map(m => ({
-      timestamp: m[1],
-      text: m[2].trim()
-    }));
-
-    if (timestamps.length === 0) {
-      timestamps.push({ timestamp: "00:00", text: "Overview & Introduction" });
-    }
-
-    return {
-      title: fallbackTitle,
-      summary: fallbackSummary,
-      content: `## Summary\n${fallbackSummary}\n\n## Transcript Notes\n` + transcript.slice(0, 3000),
-      timestamps,
-      suggestedTopic: "General Knowledge"
-    };
+    console.error("AI note generation failed:", error instanceof Error ? error.message : error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate note: Unable to extract structured knowledge from the provided content."
+    );
   }
 }
 
@@ -418,41 +422,41 @@ ${content}
       model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                  content: { type: Type.STRING, description: 'Markdown with [[slug]] links injected' },
-                  linkedSlugs: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING }
-                  }
-              },
-              required: ['content', 'linkedSlugs']
-          }
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            content: { type: Type.STRING, description: 'Markdown with [[slug]] links injected' },
+            linkedSlugs: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ['content', 'linkedSlugs']
+        }
       }
     });
 
     const textResp = response.text;
     if (!textResp) throw new Error("Empty response from AI");
-    
+
     const parsed = GeneratedLinksSchema.parse(JSON.parse(textResp));
-    
+
     // Post-validate to strip hallucinated links
     const validSlugs = new Set(existingSlugs);
     const regex = /\[\[(.*?)\]\]/g;
     const finalContent = parsed.content.replace(regex, (match, slug) => {
-        if (validSlugs.has(slug)) {
-            return match;
-        }
-        return slug;
+      if (validSlugs.has(slug)) {
+        return match;
+      }
+      return slug;
     });
-    
+
     const validatedLinkedSlugs = parsed.linkedSlugs.filter(slug => validSlugs.has(slug));
 
     return {
-        content: finalContent,
-        linkedSlugs: validatedLinkedSlugs
+      content: finalContent,
+      linkedSlugs: validatedLinkedSlugs
     };
   } catch (error) {
     return {
@@ -481,44 +485,44 @@ Comment:
     model: 'gemini-2.0-flash',
     contents: prompt,
     config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                status: { type: Type.STRING, enum: ["APPROVED", "FLAGGED"] },
-                aiReply: { type: Type.STRING, nullable: true },
-                reason: { type: Type.STRING }
-            },
-            required: ['status']
-        }
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          status: { type: Type.STRING, enum: ["APPROVED", "FLAGGED"] },
+          aiReply: { type: Type.STRING, nullable: true },
+          reason: { type: Type.STRING }
+        },
+        required: ['status']
+      }
     }
   });
 
   const textResp = response.text;
   if (!textResp) throw new Error("Empty response from AI");
-  
+
   const json = JSON.parse(textResp);
-  
+
   // Sometimes AI returns aiReply as undefined instead of null, let's normalize
   if (json.aiReply === undefined) json.aiReply = null;
-  
+
   return CommentModerationSchema.parse(json);
 }
 
 export async function* streamChat(message: string, systemContext: string): AsyncIterable<string> {
-    const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-2.0-flash',
-        contents: message,
-        config: {
-            systemInstruction: systemContext
-        }
-    });
-
-    for await (const chunk of responseStream) {
-        if (chunk.text) {
-            yield chunk.text;
-        }
+  const responseStream = await ai.models.generateContentStream({
+    model: 'gemini-2.0-flash',
+    contents: message,
+    config: {
+      systemInstruction: systemContext
     }
+  });
+
+  for await (const chunk of responseStream) {
+    if (chunk.text) {
+      yield chunk.text;
+    }
+  }
 }
 
 export async function translateNoteContent(title: string, summary: string, content: string, targetLang: 'en' | 'ml') {

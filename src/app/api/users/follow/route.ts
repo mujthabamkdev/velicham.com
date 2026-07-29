@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const session = await getSessionUser();
     if (!session) {
-      return NextResponse.json({ followedUserIds: [] });
+      return NextResponse.json({ followedUserIds: [], currentUserId: null });
     }
 
     const follows = await db.follow.findMany({
@@ -16,9 +16,10 @@ export async function GET() {
 
     return NextResponse.json({
       followedUserIds: follows.map((f) => f.followingId),
+      currentUserId: session.id,
     });
   } catch (error: any) {
-    return NextResponse.json({ followedUserIds: [] });
+    return NextResponse.json({ followedUserIds: [], currentUserId: null });
   }
 }
 

@@ -1,8 +1,15 @@
 import db from '@/lib/db';
 import NoteCard from '@/components/feed/NoteCard';
 import AdminIngestPanel from './AdminIngestPanel';
+import { getSessionUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export default async function AdminPage() {
+  const session = await getSessionUser();
+  if (!session || session.role !== 'ADMIN') {
+    redirect('/login');
+  }
+
   const notes = await db.note.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
