@@ -17,7 +17,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    if (cleanPassword.length < 4) {
+      return NextResponse.json(
+        { error: "Password must be at least 4 characters long" },
+        { status: 400 }
+      );
+    }
 
     // Check existing user via raw SQL for serverless resilience
     let existingUser: any = null;
@@ -43,9 +51,9 @@ export async function POST(req: Request) {
     }
 
     // Hash password & create user
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await hashPassword(cleanPassword);
     const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const userName = name ? name.trim() : "User";
+    const userName = name ? String(name).trim() : "User";
 
     try {
       await db.$executeRawUnsafe(

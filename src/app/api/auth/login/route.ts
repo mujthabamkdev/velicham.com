@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const cleanPassword = typeof password === "string" ? password.trim() : password;
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
 
     // Find user in DB via raw SQL for maximum resilience on serverless instances
     let user: any = null;
